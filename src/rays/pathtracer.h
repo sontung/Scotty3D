@@ -84,6 +84,8 @@ private:
 
     Camera camera;
     size_t out_w, out_h, n_samples, max_depth;
+    Samplers::Rect sampler_rect;
+
 };
 
 } // namespace PT

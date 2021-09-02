@@ -12,6 +12,11 @@
 #include "vec2.h"
 #include "vec3.h"
 
+struct SimpleTrace {
+    bool hit = false;
+    float distance = 0.0f;
+};
+
 struct BBox {
 
     /// Default min is max float value, default max is negative max float value
@@ -51,6 +56,28 @@ struct BBox {
         return min.x > max.x || min.y > max.y || min.z > max.z;
     }
 
+    bool empty_or_flat() const {
+        return min.x >= max.x || min.y >= max.y || min.z >= max.z;
+    }
+
+    bool inside(Vec3 point) const {
+        bool x = (point.x >= min.x && point.x <= max.x) || (max.x==min.x);
+        bool y = (point.y >= min.y && point.y <= max.y) || (max.y==min.y);
+        bool z = (point.z >= min.z && point.z <= max.z) || (max.z==min.z);
+        return x&&y&&z;
+    }
+
+    BBox intersect(BBox box) {
+        Vec3 min_vec, max_vec;
+        min_vec.x = std::max(min.x, box.min.x);
+        min_vec.y = std::max(min.y, box.min.y);
+        min_vec.z = std::max(min.z, box.min.z);
+        max_vec.x = std::min(max.x, box.max.x);
+        max_vec.y = std::min(max.y, box.max.y);
+        max_vec.z = std::min(max.z, box.max.z);
+        return BBox(min_vec, max_vec);
+    }
+
     /// Get surface area of the box
     float surface_area() const {
         if(empty()) return 0.0f;
@@ -79,6 +106,8 @@ struct BBox {
 
     // TODO (PathTracer): see student/bbox.cpp
     bool hit(const Ray& ray, Vec2& times) const;
+    SimpleTrace hit_simple(const Ray& ray) const;
+
 
     /// Get the eight corner points of the bounding box
     std::vector<Vec3> corners() const {
@@ -123,6 +152,7 @@ struct BBox {
     }
 
     Vec3 min, max;
+    bool enclosed = false;
 };
 
 inline std::ostream& operator<<(std::ostream& out, BBox b) {

@@ -8,7 +8,7 @@ namespace PT {
 struct Trace {
 
     bool hit = false;
-    float distance = 0.0f;
+    float distance = std::numeric_limits<float>::max();
     Vec3 position, normal, origin;
     int material = 0;
 

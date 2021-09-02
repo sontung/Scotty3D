@@ -12,13 +12,6 @@ BBox Triangle::bbox() const {
     // Beware of flat/zero-volume boxes! You may need to
     // account for that here, or later on in BBox::intersect.
 
-    BBox box;
-    return box;
-}
-
-Trace Triangle::hit(const Ray& ray) const {
-
-    // Each vertex contains a postion and surface normal
     Tri_Mesh_Vert v_0 = vertex_list[v0];
     Tri_Mesh_Vert v_1 = vertex_list[v1];
     Tri_Mesh_Vert v_2 = vertex_list[v2];
@@ -26,16 +19,64 @@ Trace Triangle::hit(const Ray& ray) const {
     (void)v_1;
     (void)v_2;
 
-    // TODO (PathTracer): Task 2
-    // Intersect the ray with the triangle defined by the three vertices.
+    float x_min = fminf(fminf(v_0.position.x, v_1.position.x), v_2.position.x);
+    float y_min = fminf(fminf(v_0.position.y, v_1.position.y), v_2.position.y);
+    float z_min = fminf(fminf(v_0.position.z, v_1.position.z), v_2.position.z);
+    float x_max = fmaxf(fmaxf(v_0.position.x, v_1.position.x), v_2.position.x);
+    float y_max = fmaxf(fmaxf(v_0.position.y, v_1.position.y), v_2.position.y);
+    float z_max = fmaxf(fmaxf(v_0.position.z, v_1.position.z), v_2.position.z);
+
+    Vec3 min_extent(x_min, y_min, z_min);
+    Vec3 max_extent(x_max, y_max, z_max);
+
+    BBox box(min_extent, max_extent);
+    return box;
+}
+
+Trace Triangle::hit(const Ray& ray) const {
+
+    // Vertices of triangle - has postion and surface normal
+    Tri_Mesh_Vert v_0 = vertex_list[v0];
+    Tri_Mesh_Vert v_1 = vertex_list[v1];
+    Tri_Mesh_Vert v_2 = vertex_list[v2];
+    (void)v_0;
+    (void)v_1;
+    (void)v_2;
 
     Trace ret;
     ret.origin = ray.point;
-    ret.hit = false;       // was there an intersection?
-    ret.distance = 0.0f;   // at what distance did the intersection occur?
-    ret.position = Vec3{}; // where was the intersection?
-    ret.normal = Vec3{};   // what was the surface normal at the intersection?
-                           // (this should be interpolated between the three vertex normals)
+
+    // TODO (PathTracer): Task 2
+    // Intersect this ray with a triangle defined by the three above points.
+    const float EPSILON = 0.0000001;
+    Vec3 s = ray.point-v_0.position;
+    Vec3 e1 = v_1.position-v_0.position;
+    Vec3 e2 = v_2.position-v_0.position;
+    Vec3 cross_e1_d = cross(e1, ray.dir);
+
+    float det = (dot(cross_e1_d, e2));
+    if (det > -EPSILON && det < EPSILON) {ret.hit = false; return ret;}
+
+    float f = 1/det;
+    Vec3 cross_s_e2 = cross(s, e2);
+    float t = -f*dot(cross_s_e2, e1);
+
+    if (t>ray.dist_bounds.y || t<ray.dist_bounds.x) {
+        ret.hit = false;
+        return ret;
+    }
+
+    float u = -f*dot(cross_s_e2, ray.dir);
+    if (u < 0.0 || u > 1.0) {ret.hit = false; return ret;}
+    float v = f*dot(cross_e1_d, s);
+    if (v < 0.0 || u + v > 1.0) {ret.hit = false; return ret;}
+
+    ray.dist_bounds.y = t;
+    ret.distance=t;
+    ret.position=ray.point+t*ray.dir;
+    ret.hit=true;
+    ret.normal=(1.0-u-v)*v_0.normal+u*v_1.normal+v*v_2.normal;
+
     return ret;
 }
 
@@ -65,7 +106,7 @@ float Triangle::pdf(Ray wray, const Mat4& T, const Mat4& iT) const {
         Vec3 v_2 = T * vertex_list[v2].position;
         float a = 2.0f / cross(v_1 - v_0, v_2 - v_0).norm();
         float g =
-            (trace.position - wray.point).norm_squared() / std::abs(dot(trace.normal, wray.dir));
+                (trace.position - wray.point).norm_squared() / std::abs(dot(trace.normal, wray.dir));
         return a * g;
     }
     return 0.0f;

@@ -19,8 +19,21 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
     Vec2 xy((float)x, (float)y);
     Vec2 wh((float)out_w, (float)out_h);
 
-    Ray ray = camera.generate_ray(xy / wh);
+    Vec2 offset = sampler_rect.sample();
+    xy += offset;
+    xy /= wh;
+
+//    Vec3 des;
+//    des.x = 0.0;
+//    des.y = 0.999;
+//    des.z = 0.0;
+//    Vec3 final_dir = des-out.point;
+//    out.dir = final_dir.unit();
+
+
+    Ray ray = camera.generate_ray(xy);
     ray.depth = max_depth;
+    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
 
     // Pathtracer::trace() returns the incoming light split into emissive and reflected components.
     auto [emissive, reflected] = trace(ray);
@@ -49,6 +62,9 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
     // Pathtracer::sample_direct_lighting().
 
     Spectrum radiance;
+    Scatter scat = hit.bsdf.scatter(hit.out_dir);
+    Vec3 in_dir = scat.direction+hit.pos;
+    Vec3 in_dir_world_space = hit.object_to_world*in_dir;
     return radiance;
 }
 

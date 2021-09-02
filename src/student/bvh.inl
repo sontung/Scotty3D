@@ -6,44 +6,299 @@
 namespace PT {
 
 template<typename Primitive>
+void BVH<Primitive>::node_bbox_enclosing(size_t node_idx) {
+    size_t start = nodes[node_idx].start;
+    size_t size = nodes[node_idx].size;
+    for (size_t i=start; i<start+size; i++) {
+        nodes[node_idx].bbox.enclose(primitives[i].bbox());
+    }
+}
+
+template<typename Primitive>
+BBox BVH<Primitive>::enclose_box(size_t start, size_t size) {
+    BBox box;
+    for (size_t i=start; i<start+size; i++) {
+        box.enclose(primitives[i].bbox());
+    }
+    return box;
+}
+
+template<typename Primitive>
+size_t BVH<Primitive>::compute_bucket_index(Bucket* buckets, size_t prim_idx, size_t nb_buckets, int dim) {
+    for (size_t i = 0; i<nb_buckets; i++) {
+        if (primitive_centroids[prim_idx][dim] >= buckets[i].bounds_for_centroids.x) {
+            if (primitive_centroids[prim_idx][dim] <= buckets[i].bounds_for_centroids.y) {
+                return i;
+            }
+        }
+    }
+    return nb_buckets;
+}
+
+
+template<typename Primitive>
+float BVH<Primitive>::compute_partition_cost(Bucket* buckets, size_t partition_idx,
+                                             size_t nb_buckets, float bound_area) {
+    Vec2 sa1;
+    Vec2 sa2;
+    sa1.x = 0.0; sa1.y = 0.0;
+    sa2.x = 0.0; sa2.y = 0.0;
+    BBox box1, box2;
+    for (size_t i1=0; i1<partition_idx; i1++) {
+        box1.enclose(buckets[i1].bbox);
+        sa1.x += (float)buckets[i1].prims_idx_vec.size();
+    }
+    for (size_t i2=partition_idx; i2<nb_buckets; i2++) {
+        box2.enclose(buckets[i2].bbox);
+        sa2.x += (float)buckets[i2].prims_idx_vec.size();
+    }
+
+    if (sa1.x < 1.0 || sa2.x < 1.0) return FLT_MAX;  // if one of the split is empty, put maximum cost
+
+    float cost1 = box1.surface_area()*sa1.x;
+    float cost2 = box2.surface_area()*sa2.x;
+    float total_cost = ((cost1+cost2)+box1.intersect(box2).surface_area())/bound_area;
+
+    return total_cost;
+}
+
+template<typename Primitive>
+void BVH<Primitive>::sah_split(size_t parent_index,
+                               size_t dim,
+                               size_t nb_buckets,
+                               size_t start,
+                               size_t size,
+                               BBox& global_bounds,
+                               BBox& centroid_bounds){
+
+    Bucket buckets[nb_buckets];
+    size_t best_pid;
+
+    // init buckets
+    float max_centroid = centroid_bounds.max[dim];
+    float min_centroid = centroid_bounds.min[dim];
+    if (max_centroid-min_centroid < 0.00001) return;
+
+    max_centroid += 0.000001; // To avoid
+    min_centroid -= 0.000001; // numerical errors
+    float step = (max_centroid-min_centroid)/(float)nb_buckets;
+
+    for (size_t i=0; i<nb_buckets; i++) {
+        buckets[i].bounds_for_centroids.x = min_centroid+step*i;
+        buckets[i].bounds_for_centroids.y = min_centroid+step*(i+1);
+    }
+
+    // compute bucket for each primitive
+    for (size_t i=0; i<size; i++) {
+        size_t prim_id = nodes[parent_index].prims_idx_vec[i];
+        size_t bucket_idx = compute_bucket_index(buckets, prim_id, nb_buckets, dim);
+        assert(bucket_idx!=nb_buckets);
+        buckets[bucket_idx].bbox.enclose(primitives[prim_id].bbox());
+        buckets[bucket_idx].prims_idx_vec.push_back(prim_id);
+    }
+
+    float global_bound_area = global_bounds.surface_area();
+    float min_cost = compute_partition_cost(buckets, 1, nb_buckets, global_bound_area);
+    best_pid = 1;
+    for (size_t pid=2; pid<nb_buckets; pid++) {
+        float cost = compute_partition_cost(buckets, pid, nb_buckets, global_bound_area);
+        if (cost < min_cost) {
+            min_cost = cost;
+            best_pid = pid;
+        }
+    }
+
+
+    if (best_bucket_split.unset) {
+        best_bucket_split.unset = false;
+        best_bucket_split.best_split = best_pid;
+        best_bucket_split.best_cost = min_cost;
+        for (size_t i=0; i<nb_buckets; i++) {
+            best_bucket_split.bucket_array[i] = buckets[i];
+        }
+    } else if (min_cost < best_bucket_split.best_cost) {
+        best_bucket_split.best_split = best_pid;
+        best_bucket_split.best_cost = min_cost;
+        for (size_t i=0; i<nb_buckets; i++) {
+            best_bucket_split.bucket_array[i] = buckets[i];
+        }
+    }
+}
+
+
+template<typename Primitive>
+void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims) {
+    size_t start = nodes[parent_index].start;
+    size_t size = nodes[parent_index].size;
+
+    if (size < 1) {
+        return;
+    }
+    else if (size == 1) {
+        ordered_prims.push_back(nodes[parent_index].prims_idx_vec[0]);
+    }
+    else {
+        BBox box1, box2;
+        size_t left_child_idx = new_node(box1, 0, 0, 1, 1);
+        size_t right_child_idx = new_node(box2, 0, 0, 2, 2);
+
+        if (size >= 3) {
+            size_t nb_buckets;
+            if (size > 12) nb_buckets = 12;
+            else nb_buckets = size;
+
+            // global bounds for all primitives
+            BBox global_bounds, centroid_bounds;
+
+            for (size_t i=0; i<size; i++) {
+                size_t prim_id = nodes[parent_index].prims_idx_vec[i];
+                global_bounds.enclose(primitives[prim_id].bbox());
+                centroid_bounds.enclose(primitive_centroids[prim_id]);
+            }
+
+            // finding best split
+            sah_split(parent_index, 0, nb_buckets, start, size, global_bounds, centroid_bounds);
+            sah_split(parent_index, 1, nb_buckets, start, size, global_bounds, centroid_bounds);
+            sah_split(parent_index, 2, nb_buckets, start, size, global_bounds, centroid_bounds);
+            best_bucket_split.unset = true;
+
+            // dont split if the cost is higher than earlier
+            if (best_bucket_split.best_cost > nodes[parent_index].split_cost) {
+                ordered_prims.insert(ordered_prims.end(),
+                                     nodes[parent_index].prims_idx_vec.begin(), nodes[parent_index].prims_idx_vec.end());
+                return;
+            }
+
+            // create nodes for the best split
+            total_split_cost += best_bucket_split.best_cost;
+            nodes[left_child_idx].split_cost = best_bucket_split.best_cost;
+            nodes[right_child_idx].split_cost = best_bucket_split.best_cost;
+
+            size_t bucket_size1 = 0;
+            size_t bucket_size2 = 0;
+            size_t best_pid = best_bucket_split.best_split;
+
+            for (size_t i1=0; i1<best_pid; i1++) {
+                for (size_t u=0; u<best_bucket_split.bucket_array[i1].prims_idx_vec.size(); u++) {
+                    size_t prim_id = best_bucket_split.bucket_array[i1].prims_idx_vec[u];
+                    nodes[left_child_idx].prims_idx_vec.push_back(prim_id);
+                }
+                bucket_size1 += best_bucket_split.bucket_array[i1].prims_idx_vec.size();
+            }
+            for (size_t i2=best_pid; i2<nb_buckets; i2++) {
+                for (size_t u=0; u<best_bucket_split.bucket_array[i2].prims_idx_vec.size(); u++) {
+                    size_t prim_id = best_bucket_split.bucket_array[i2].prims_idx_vec[u];
+                    nodes[right_child_idx].prims_idx_vec.push_back(prim_id);
+                }
+                bucket_size2 += best_bucket_split.bucket_array[i2].prims_idx_vec.size();
+
+            }
+
+            nodes[left_child_idx].start = start;
+            nodes[left_child_idx].size = bucket_size1;
+            nodes[right_child_idx].start = start+bucket_size1;
+            nodes[right_child_idx].size = bucket_size2;
+        } else {
+            size_t half_point = start+size/2;
+            nodes[left_child_idx].start = start;
+            nodes[left_child_idx].size = size/2;
+            nodes[right_child_idx].start = half_point;
+            nodes[right_child_idx].size = size-size/2;
+
+            for (size_t u=0; u<size/2; u++) {
+                size_t prim_id = nodes[parent_index].prims_idx_vec[u];
+                nodes[left_child_idx].prims_idx_vec.push_back(prim_id);
+            }
+
+            for (size_t u=size/2; u<size; u++) {
+                size_t prim_id = nodes[parent_index].prims_idx_vec[u];
+                nodes[right_child_idx].prims_idx_vec.push_back(prim_id);
+            }
+        }
+
+        nodes[parent_index].l = left_child_idx;
+        nodes[parent_index].r = right_child_idx;
+        nodes[left_child_idx].l = left_child_idx;
+        nodes[left_child_idx].r = left_child_idx;
+        nodes[right_child_idx].l = right_child_idx;
+        nodes[right_child_idx].r = right_child_idx;
+
+        nodes[left_child_idx].level = nodes[parent_index].level+1;
+        nodes[right_child_idx].level = nodes[parent_index].level+1;
+
+        // if not too large, continue splitting
+        if (nodes[left_child_idx].size <= max_leaf_size) {
+            ordered_prims.insert(ordered_prims.end(), nodes[left_child_idx].prims_idx_vec.begin(), nodes[left_child_idx].prims_idx_vec.end());
+        } else build_helper_sah(max_leaf_size, left_child_idx, ordered_prims);
+        if (nodes[right_child_idx].size <= max_leaf_size) {
+            ordered_prims.insert(ordered_prims.end(), nodes[right_child_idx].prims_idx_vec.begin(), nodes[right_child_idx].prims_idx_vec.end());
+        } else build_helper_sah(max_leaf_size, right_child_idx, ordered_prims);
+        return;
+    }
+
+}
+
+template<typename Primitive>
+void reorder(std::vector<Primitive>& vec, std::vector<size_t>& vOrder) {
+    assert(vec.size() == vOrder.size());
+    for( size_t vv = 0; vv < vec.size() - 1; ++vv ) {
+        if (vOrder[vv] == vv) continue;
+        size_t oo;
+        for(oo = vv + 1; oo < vOrder.size(); ++oo) {
+            if (vOrder[oo] == vv) break;
+        }
+        std::swap( vec[vv], vec[vOrder[vv]] );
+        std::swap( vOrder[vv], vOrder[oo] );
+    }
+}
+
+template<typename Primitive>
 void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size) {
-
-    // NOTE (PathTracer):
-    // This BVH is parameterized on the type of the primitive it contains. This allows
-    // us to build a BVH over any type that defines a certain interface. Specifically,
-    // we use this to both build a BVH over triangles within each Tri_Mesh, and over
-    // a variety of Objects (which might be Tri_Meshes, Spheres, etc.) in Pathtracer.
-    //
-    // The Primitive interface must implement these two functions:
-    //      BBox bbox() const;
-    //      Trace hit(const Ray& ray) const;
-    // Hence, you may call bbox() and hit() on any value of type Primitive.
-    //
-    // Finally, also note that while a BVH is a tree structure, our BVH nodes don't
-    // contain pointers to children, but rather indicies. This is because instead
-    // of allocating each node individually, the BVH class contains a vector that
-    // holds all of the nodes. Hence, to get the child of a node, you have to
-    // look up the child index in this vector (e.g. nodes[node.l]). Similarly,
-    // to create a new node, don't allocate one yourself - use BVH::new_node, which
-    // returns the index of a newly added node.
-
-    assert(false);
-    // Keep these
+    printf("Building BVH with leaf size=%zu\n", max_leaf_size);
     nodes.clear();
     primitives = std::move(prims);
+    for (size_t i=0; i<primitives.size(); i++) {
+        Vec3 prim_centroid = primitives[i].bbox().center();
+        primitive_centroids.push_back(prim_centroid);
+    }
 
-    // TODO (PathTracer): Task 3
-    // Construct a BVH from the given vector of primitives and maximum leaf
-    // size configuration. The starter code builds a BVH with a
-    // single leaf node (which is also the root) that encloses all the
-    // primitives.
-
-    // Replace these
-    BBox box;
-    for(const Primitive& prim : primitives) box.enclose(prim.bbox());
-
-    new_node(box, 0, primitives.size(), 0, 0);
     root_idx = 0;
+    BBox root_box = enclose_box(0, primitives.size());
+    new_node(root_box, 0, primitives.size(), 0, 0);
+    for (size_t i=0; i<primitives.size(); i++) nodes[root_idx].prims_idx_vec.push_back(i);
+    std::vector<size_t> orderer_primitives;
+    orderer_primitives.reserve(primitives.size());
+    best_bucket_split.bucket_array.reserve(12);
+    Bucket empty_bucket;
+    for (size_t i=0; i<12; i++) best_bucket_split.bucket_array.push_back(empty_bucket);
+    build_helper_sah(max_leaf_size, root_idx, orderer_primitives);
+    reorder(primitives, orderer_primitives);
+    for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
+    printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
+}
+
+template<typename Primitive>
+void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit, const Node& current_node) const {
+    SimpleTrace hit_bbox = current_node.bbox.hit_simple(ray);
+
+    if (!hit_bbox.hit) {
+        return;
+    } else if (hit_bbox.distance > closest_hit.distance) {
+        return;
+    }
+
+    if (current_node.is_leaf()) {
+        size_t start = current_node.start;
+        size_t size = current_node.size;
+
+        for (size_t i=start; i<start+size; i++) {
+            Trace hit = primitives[i].hit(ray);
+            closest_hit = Trace::min(closest_hit, hit);
+        }
+    } else {
+        hit_helper(ray, closest_hit, nodes[current_node.l]);
+        hit_helper(ray, closest_hit, nodes[current_node.r]);
+    }
 }
 
 template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
@@ -57,10 +312,7 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
     // Again, remember you can use hit() on any Primitive value.
 
     Trace ret;
-    for(const Primitive& prim : primitives) {
-        Trace hit = prim.hit(ray);
-        ret = Trace::min(ret, hit);
-    }
+    hit_helper(ray, ret, nodes[root_idx]);
     return ret;
 }
 

@@ -36,9 +36,11 @@ Scatter BSDF_Lambertian::scatter(Vec3 out_dir) const {
     // Sample the BSDF distribution using the cosine-weighted hemisphere sampler.
     // You can use BSDF_Lambertian::evaluate() to compute attenuation.
 
+
+
     Scatter ret;
-    ret.direction = Vec3{};
-    ret.attenuation = Spectrum{};
+    ret.direction = sampler.sample();
+    ret.attenuation = evaluate(out_dir, ret.direction);
     return ret;
 }
 
