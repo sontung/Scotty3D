@@ -62,9 +62,19 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
     // Pathtracer::sample_direct_lighting().
 
     Spectrum radiance;
-    Scatter scat = hit.bsdf.scatter(hit.out_dir);
-    Vec3 in_dir = scat.direction+hit.pos;
-    Vec3 in_dir_world_space = hit.object_to_world*in_dir;
+    float coeff = 2*PI_F;
+    size_t nb_samples = 100;
+    for (size_t i=0; i<nb_samples; i++) {
+        Scatter scat = hit.bsdf.scatter(hit.out_dir);
+        Vec3 in_dir = scat.direction+hit.pos;
+        Vec3 in_dir_world_space = hit.object_to_world*in_dir;
+        float cos_theta = dot(hit.normal, in_dir)/(hit.normal.norm()*in_dir.norm());
+        Ray new_ray(hit.pos, in_dir_world_space);
+        new_ray.depth = hit.depth-1;
+        auto [emissive, reflected] = trace(new_ray);
+        radiance += scat.attenuation/PI_F*cos_theta*(emissive+reflected);
+    }
+    radiance *= coeff/nb_samples;
     return radiance;
 }
 
@@ -134,14 +144,11 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // TODO (PathTracer): Task 4
     // You will want to change the default normal_colors in debug.h, or delete this early out.
-    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
+//    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
 
     // If the BSDF is emissive, stop tracing and return the emitted light
     Spectrum emissive = bsdf.emissive();
     if(emissive.luma() > 0.0f) return {emissive, {}};
-
-    // If the ray has reached maximum depth, stop tracing
-    if(ray.depth == 0) return {};
 
     // Set up shading information
     Mat4 object_to_world = Mat4::rotate_to(result.normal);
@@ -150,6 +157,9 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     Shading_Info hit = {bsdf,    world_to_object, object_to_world, result.position,
                         out_dir, result.normal,   ray.depth};
+
+    // If the ray has reached maximum depth, stop tracing
+    if(ray.depth == 0) return {{}, sample_direct_lighting(hit)};
 
     // Sample and return light reflected through the intersection
     return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};

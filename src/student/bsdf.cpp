@@ -51,7 +51,7 @@ Spectrum BSDF_Lambertian::evaluate(Vec3 out_dir, Vec3 in_dir) const {
     // Compute the ratio of reflected/incoming radiance when light from in_dir
     // is reflected through out_dir: albedo * cos(theta).
 
-    return Spectrum{};
+    return albedo;
 }
 
 float BSDF_Lambertian::pdf(Vec3 out_dir, Vec3 in_dir) const {
