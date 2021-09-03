@@ -2,6 +2,7 @@
 #include "../rays/bvh.h"
 #include "debug.h"
 #include <stack>
+#include <iostream>
 
 namespace PT {
 
@@ -265,6 +266,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     root_idx = 0;
     BBox root_box = enclose_box(0, primitives.size());
     new_node(root_box, 0, primitives.size(), 0, 0);
+
     for (size_t i=0; i<primitives.size(); i++) nodes[root_idx].prims_idx_vec.push_back(i);
     std::vector<size_t> orderer_primitives;
     orderer_primitives.reserve(primitives.size());
@@ -278,14 +280,19 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 }
 
 template<typename Primitive>
-void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit, const Node& current_node) const {
-    SimpleTrace hit_bbox = current_node.bbox.hit_simple(ray);
+void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
+                                const Node& current_node, size_t& times,
+                                SimpleTrace& hit_bbox) const {
 
     if (!hit_bbox.hit) {
+        return;
+    }
+    else if (hit_bbox.distance < ray.dist_bounds.x || hit_bbox.distance > ray.dist_bounds.y) {
         return;
     } else if (hit_bbox.distance > closest_hit.distance) {
         return;
     }
+//    times += 1;
 
     if (current_node.is_leaf()) {
         size_t start = current_node.start;
@@ -296,8 +303,29 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit, const Node& 
             closest_hit = Trace::min(closest_hit, hit);
         }
     } else {
-        hit_helper(ray, closest_hit, nodes[current_node.l]);
-        hit_helper(ray, closest_hit, nodes[current_node.r]);
+        SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
+        SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
+        if (hit_bbox_l.hit && hit_bbox_r.hit) {
+//            printf("%f %f\n", hit_bbox_l.distance, hit_bbox_r.distance);
+            if (hit_bbox_l.distance < hit_bbox_r.distance) {
+                hit_helper(ray, closest_hit, nodes[current_node.l], times, hit_bbox_l);
+                if (closest_hit.distance > hit_bbox_r.distance) {
+//                    printf("%f %f cont\n", closest_hit.distance, hit_bbox_r.distance);
+                    hit_helper(ray, closest_hit, nodes[current_node.r], times, hit_bbox_r);
+                }
+            } else {
+                hit_helper(ray, closest_hit, nodes[current_node.r], times, hit_bbox_r);
+                if (closest_hit.distance > hit_bbox_l.distance) {
+//                    printf("%f %f cont\n", closest_hit.distance, hit_bbox_l.distance);
+                    hit_helper(ray, closest_hit, nodes[current_node.l], times, hit_bbox_l);
+                }
+            }
+        } else if (hit_bbox_l.hit) {
+            hit_helper(ray, closest_hit, nodes[current_node.l], times, hit_bbox_l);
+        } else if (hit_bbox_r.hit) {
+            hit_helper(ray, closest_hit, nodes[current_node.r], times, hit_bbox_r);
+        }
+
     }
 }
 
@@ -310,10 +338,25 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 
     // The starter code simply iterates through all the primitives.
     // Again, remember you can use hit() on any Primitive value.
+    Trace ret2;
+
+    for (size_t i=0; i<primitives.size(); i++) {
+        Trace hit = primitives[i].hit(ray);
+        ret2 = Trace::min(ret2, hit);
+    }
 
     Trace ret;
-    hit_helper(ray, ret, nodes[root_idx]);
-    return ret;
+    size_t times=0;
+    SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray);
+    hit_helper(ray, ret, nodes[root_idx], times, hit_bbox);
+//    printf("final t=%f\n", ret2.distance);
+
+//    if (ret.hit) {
+//        std::cout<<ray.point<<ray.dir;
+//        printf("final t=%f\n", ret.distance);
+//    }
+//    exit(0);
+    return ret2;
 }
 
 template<typename Primitive>

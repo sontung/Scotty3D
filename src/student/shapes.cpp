@@ -42,7 +42,7 @@ Trace Sphere::hit(const Ray& ray) const {
     float num_sq = sqrt(num);
     float t1 = -od-num_sq;
     if (t1 >= ray.dist_bounds.x && t1 <= ray.dist_bounds.y) {
-        ray.dist_bounds.y = t1;
+//        ray.dist_bounds.y = t1;
         ret.distance = t1;
         ret.position = ray.point+t1*ray.dir;
         ret.hit = true;
@@ -51,7 +51,7 @@ Trace Sphere::hit(const Ray& ray) const {
     }
     float t2 = -od+num_sq;
     if (t2 >= ray.dist_bounds.x && t2 <= ray.dist_bounds.y) {
-        ray.dist_bounds.y = t2;
+//        ray.dist_bounds.y = t2;
         ret.distance = t2;
         ret.position = ray.point+t2*ray.dir;
         ret.hit = true;

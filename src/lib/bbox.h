@@ -14,7 +14,7 @@
 
 struct SimpleTrace {
     bool hit = false;
-    float distance = 0.0f;
+    float distance = std::numeric_limits<float>::max();
 };
 
 struct BBox {
