@@ -24,16 +24,16 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
     xy += offset;
     xy /= wh;
 
-    xy.x=0.5; xy.y=0.5;
+//    xy.x=0.5; xy.y=0.5;
 
     Ray ray = camera.generate_ray(xy);
 
-    Vec3 des;
-    des.x = -0.165;
-    des.y = 0.2;
-    des.z = -0.026;
-    Vec3 final_dir = des-ray.point;
-    ray.dir = final_dir.unit();
+//    Vec3 des;
+//    des.x = -0.165;
+//    des.y = 0.2;
+//    des.z = -0.026;
+//    Vec3 final_dir = des-ray.point;
+//    ray.dir = final_dir.unit();
 
     ray.depth = max_depth;
     if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
@@ -159,13 +159,13 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
         result.normal = -result.normal;
     }
 
-    // TODO (PathTracer): Task 4
-    // You will want to change the default normal_colors in debug.h, or delete this early out.
-    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
-
     // If the BSDF is emissive, stop tracing and return the emitted light
     Spectrum emissive = bsdf.emissive();
     if(emissive.luma() > 0.0f) return {emissive, {}};
+
+    // TODO (PathTracer): Task 4
+    // You will want to change the default normal_colors in debug.h, or delete this early out.
+    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
 
     // If the ray has reached maximum depth, stop tracing
     if(ray.depth == 0) return {};

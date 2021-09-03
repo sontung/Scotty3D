@@ -59,7 +59,7 @@ private:
     float compute_partition_cost(Bucket* buckets, size_t partition_idx, size_t nb_buckets, float bound_area);
     void node_bbox_enclosing(size_t node_idx);
     void hit_helper(const Ray& ray, Trace& closest_hit,
-                    const Node& current_node, size_t& times,
+                    const Node& current_node,
                     SimpleTrace& hit_bbox) const;
     BBox enclose_box(size_t start, size_t end);
     void build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims);
@@ -72,6 +72,7 @@ private:
 
 
     BestBucketSplit best_bucket_split;
+    mutable size_t times_avg=0;
     float total_split_cost = 0.0;
     std::vector<Vec3> primitive_centroids;
     std::vector<Node> nodes;

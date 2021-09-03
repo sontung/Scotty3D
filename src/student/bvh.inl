@@ -281,18 +281,29 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 
 template<typename Primitive>
 void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
-                                const Node& current_node, size_t& times,
+                                const Node& current_node,
                                 SimpleTrace& hit_bbox) const {
+
+    if (current_node.bbox.empty_or_flat()) {
+        size_t start = current_node.start;
+        size_t size = current_node.size;
+        for (size_t i=start; i<start+size; i++) {
+            Trace hit = primitives[i].hit(ray);
+            closest_hit = Trace::min(closest_hit, hit);
+        }
+        return;
+    }
 
     if (!hit_bbox.hit) {
         return;
     }
-    else if (hit_bbox.distance < ray.dist_bounds.x || hit_bbox.distance > ray.dist_bounds.y) {
-        return;
-    } else if (hit_bbox.distance > closest_hit.distance) {
+    else if (hit_bbox.distance > ray.dist_bounds.y || hit_bbox.distance < ray.dist_bounds.x) {
         return;
     }
-//    times += 1;
+    else if (hit_bbox.distance > closest_hit.distance) {
+        return;
+    }
+
 
     if (current_node.is_leaf()) {
         size_t start = current_node.start;
@@ -305,27 +316,35 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
     } else {
         SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
         SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
-        if (hit_bbox_l.hit && hit_bbox_r.hit) {
-//            printf("%f %f\n", hit_bbox_l.distance, hit_bbox_r.distance);
+
+        if (!nodes[current_node.l].bbox.empty_or_flat() && !nodes[current_node.r].bbox.empty_or_flat()) {
             if (hit_bbox_l.distance < hit_bbox_r.distance) {
-                hit_helper(ray, closest_hit, nodes[current_node.l], times, hit_bbox_l);
+                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+
                 if (closest_hit.distance > hit_bbox_r.distance) {
-//                    printf("%f %f cont\n", closest_hit.distance, hit_bbox_r.distance);
-                    hit_helper(ray, closest_hit, nodes[current_node.r], times, hit_bbox_r);
+                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
                 }
             } else {
-                hit_helper(ray, closest_hit, nodes[current_node.r], times, hit_bbox_r);
+                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
+
                 if (closest_hit.distance > hit_bbox_l.distance) {
-//                    printf("%f %f cont\n", closest_hit.distance, hit_bbox_l.distance);
-                    hit_helper(ray, closest_hit, nodes[current_node.l], times, hit_bbox_l);
+                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
                 }
             }
-        } else if (hit_bbox_l.hit) {
-            hit_helper(ray, closest_hit, nodes[current_node.l], times, hit_bbox_l);
-        } else if (hit_bbox_r.hit) {
-            hit_helper(ray, closest_hit, nodes[current_node.r], times, hit_bbox_r);
-        }
+        } else {
+            if (!nodes[current_node.r].bbox.empty_or_flat()) {
+                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+                if (closest_hit.distance > hit_bbox_r.distance) {
+                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
+                }
+            } else {
+                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
 
+                if (closest_hit.distance > hit_bbox_l.distance) {
+                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+                }
+            }
+        }
     }
 }
 
@@ -338,25 +357,26 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 
     // The starter code simply iterates through all the primitives.
     // Again, remember you can use hit() on any Primitive value.
-    Trace ret2;
 
-    for (size_t i=0; i<primitives.size(); i++) {
-        Trace hit = primitives[i].hit(ray);
-        ret2 = Trace::min(ret2, hit);
-    }
 
     Trace ret;
-    size_t times=0;
     SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray);
-    hit_helper(ray, ret, nodes[root_idx], times, hit_bbox);
-//    printf("final t=%f\n", ret2.distance);
+    hit_helper(ray, ret, nodes[root_idx], hit_bbox);
 
-//    if (ret.hit) {
-//        std::cout<<ray.point<<ray.dir;
-//        printf("final t=%f\n", ret.distance);
-//    }
-//    exit(0);
-    return ret2;
+
+    //    Trace ret2;
+    //    for (size_t i=0; i<primitives.size(); i++) {
+    //        Trace hit = primitives[i].hit(ray);
+    //        ret2 = Trace::min(ret2, hit);
+    //    }
+
+    //    assert(ret.hit==ret2.hit);
+    //    if (ret2.hit) {
+    //        printf("%f %f\n", ret.distance, ret2.distance);
+    //        assert(fabsf(ret.distance-ret2.distance) <= 0.0001);
+    //    }
+
+    return ret;
 }
 
 template<typename Primitive>
@@ -417,18 +437,18 @@ size_t BVH<Primitive>::visualize(GL::Lines& lines, GL::Lines& active, size_t lev
     while(!tstack.empty()) {
 
         auto [idx, lvl] = tstack.top();
-        max_level = std::max(max_level, lvl);
-        const Node& node = nodes[idx];
-        tstack.pop();
+                max_level = std::max(max_level, lvl);
+                const Node& node = nodes[idx];
+                tstack.pop();
 
-        Vec3 color = lvl == level ? Vec3(1.0f, 0.0f, 0.0f) : Vec3(1.0f);
-        GL::Lines& add = lvl == level ? active : lines;
+                Vec3 color = lvl == level ? Vec3(1.0f, 0.0f, 0.0f) : Vec3(1.0f);
+                GL::Lines& add = lvl == level ? active : lines;
 
-        BBox box = node.bbox;
-        box.transform(trans);
-        Vec3 min = box.min, max = box.max;
+                BBox box = node.bbox;
+                box.transform(trans);
+                Vec3 min = box.min, max = box.max;
 
-        auto edge = [&](Vec3 a, Vec3 b) { add.add(a, b, color); };
+                auto edge = [&](Vec3 a, Vec3 b) { add.add(a, b, color); };
 
         edge(min, Vec3{max.x, min.y, min.z});
         edge(min, Vec3{min.x, max.y, min.z});

@@ -61,17 +61,17 @@ Trace Triangle::hit(const Ray& ray) const {
     Vec3 cross_s_e2 = cross(s, e2);
     float t = -f*dot(cross_s_e2, e1);
 
-//    if (t>ray.dist_bounds.y || t<ray.dist_bounds.x) {
-//        ret.hit = false;
-//        return ret;
-//    }
+    if (t>ray.dist_bounds.y || t<ray.dist_bounds.x) {
+        ret.hit = false;
+        return ret;
+    }
 
     float u = -f*dot(cross_s_e2, ray.dir);
     if (u < 0.0 || u > 1.0) {ret.hit = false; return ret;}
     float v = f*dot(cross_e1_d, s);
     if (v < 0.0 || u + v > 1.0) {ret.hit = false; return ret;}
 
-//    ray.dist_bounds.y = t;
+    ray.dist_bounds.y = t;
     ret.distance=t;
     ret.position=ray.point+t*ray.dir;
     ret.hit=true;
