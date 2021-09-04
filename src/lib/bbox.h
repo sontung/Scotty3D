@@ -57,7 +57,7 @@ struct BBox {
     }
 
     bool empty_or_flat() const {
-        return min.x >= max.x || min.y >= max.y || min.z >= max.z;
+        return fabsf(min.x-max.x) <= 0.00001 || fabsf(min.y-max.y) <= 0.00001 || fabsf(min.z-max.z) <= 0.00001;
     }
 
     bool inside(Vec3 point) const {

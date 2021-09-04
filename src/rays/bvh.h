@@ -31,8 +31,10 @@ public:
 
 private:
     class Node {
+        bool flat=false;
         BBox bbox;
-        size_t start, size, l, r, id;
+        size_t start, size, l, r;
+        size_t id = 0;
         size_t level=0;
         std::vector<size_t> prims_idx_vec;
         float split_cost=FLT_MAX;

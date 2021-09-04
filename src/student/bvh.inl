@@ -58,8 +58,8 @@ float BVH<Primitive>::compute_partition_cost(Bucket* buckets, size_t partition_i
 
     float cost1 = box1.surface_area()*sa1.x;
     float cost2 = box2.surface_area()*sa2.x;
-//    float cost3 = box1.intersect(box2).surface_area();
-    float total_cost = (cost1+cost2)/bound_area;
+    //    float cost3 = box1.intersect(box2).surface_area();
+    float total_cost = (cost1+cost2)/bound_area+1.0;
 
     return total_cost;
 }
@@ -133,6 +133,54 @@ void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index,
     size_t start = nodes[parent_index].start;
     size_t size = nodes[parent_index].size;
 
+    if (parent_index == 0) {
+        std::vector<size_t> flat_prims;
+        std::vector<size_t> non_flat_prims;
+        for (size_t i=0; i<primitives.size(); i++) {
+            if (primitives[i].bbox().empty_or_flat()) {
+                flat_prims.push_back(i);
+            }
+            else {
+                non_flat_prims.push_back(i);
+            }
+        }
+
+        if (flat_prims.size() > 0 && non_flat_prims.size() > 0) {
+            BBox box1, box2;
+            size_t left_child_idx = new_node(box1, 0, 0, 1, 1);
+            size_t right_child_idx = new_node(box2, 0, 0, 2, 2);
+            nodes[left_child_idx].id = left_child_idx;
+            nodes[right_child_idx].id = right_child_idx;
+
+            for (size_t i1=0; i1<non_flat_prims.size(); i1++) {
+                size_t prim_id = non_flat_prims[i1];
+                nodes[left_child_idx].prims_idx_vec.push_back(prim_id);
+            }
+            for (size_t i2=0; i2<flat_prims.size(); i2++) {
+                size_t prim_id = flat_prims[i2];
+                nodes[right_child_idx].prims_idx_vec.push_back(prim_id);
+            }
+
+
+            nodes[left_child_idx].start = 0;
+            nodes[left_child_idx].size = non_flat_prims.size();
+            nodes[right_child_idx].start = non_flat_prims.size();
+            nodes[right_child_idx].size = flat_prims.size();
+            nodes[parent_index].l = left_child_idx;
+            nodes[parent_index].r = right_child_idx;
+            nodes[left_child_idx].l = left_child_idx;
+            nodes[left_child_idx].r = left_child_idx;
+            nodes[right_child_idx].l = right_child_idx;
+            nodes[right_child_idx].r = right_child_idx;
+
+            build_helper_sah(max_leaf_size, left_child_idx, ordered_prims);
+            nodes[right_child_idx].flat = true;
+            ordered_prims.insert(ordered_prims.end(),
+                                 nodes[right_child_idx].prims_idx_vec.begin(), nodes[right_child_idx].prims_idx_vec.end());
+            return;
+        }
+    }
+
     if (size < 1) {
         return;
     }
@@ -143,8 +191,11 @@ void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index,
         BBox box1, box2;
         size_t left_child_idx = new_node(box1, 0, 0, 1, 1);
         size_t right_child_idx = new_node(box2, 0, 0, 2, 2);
+        nodes[left_child_idx].id = left_child_idx;
+        nodes[right_child_idx].id = right_child_idx;
 
-        if (size >= 3) {
+
+        if (size >= max_leaf_size) {
             size_t nb_buckets;
             if (size > 12) nb_buckets = 12;
             else nb_buckets = size;
@@ -193,7 +244,6 @@ void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index,
                     nodes[right_child_idx].prims_idx_vec.push_back(prim_id);
                 }
                 bucket_size2 += best_bucket_split.bucket_array[i2].prims_idx_vec.size();
-
             }
 
             nodes[left_child_idx].start = start;
@@ -201,21 +251,9 @@ void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index,
             nodes[right_child_idx].start = start+bucket_size1;
             nodes[right_child_idx].size = bucket_size2;
         } else {
-            size_t half_point = start+size/2;
-            nodes[left_child_idx].start = start;
-            nodes[left_child_idx].size = size/2;
-            nodes[right_child_idx].start = half_point;
-            nodes[right_child_idx].size = size-size/2;
-
-            for (size_t u=0; u<size/2; u++) {
-                size_t prim_id = nodes[parent_index].prims_idx_vec[u];
-                nodes[left_child_idx].prims_idx_vec.push_back(prim_id);
-            }
-
-            for (size_t u=size/2; u<size; u++) {
-                size_t prim_id = nodes[parent_index].prims_idx_vec[u];
-                nodes[right_child_idx].prims_idx_vec.push_back(prim_id);
-            }
+            ordered_prims.insert(ordered_prims.end(),
+                                 nodes[parent_index].prims_idx_vec.begin(), nodes[parent_index].prims_idx_vec.end());
+            return;
         }
 
         nodes[parent_index].l = left_child_idx;
@@ -225,16 +263,8 @@ void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index,
         nodes[right_child_idx].l = right_child_idx;
         nodes[right_child_idx].r = right_child_idx;
 
-        nodes[left_child_idx].level = nodes[parent_index].level+1;
-        nodes[right_child_idx].level = nodes[parent_index].level+1;
-
-        // if not too large, continue splitting
-        if (nodes[left_child_idx].size <= max_leaf_size) {
-            ordered_prims.insert(ordered_prims.end(), nodes[left_child_idx].prims_idx_vec.begin(), nodes[left_child_idx].prims_idx_vec.end());
-        } else build_helper_sah(max_leaf_size, left_child_idx, ordered_prims);
-        if (nodes[right_child_idx].size <= max_leaf_size) {
-            ordered_prims.insert(ordered_prims.end(), nodes[right_child_idx].prims_idx_vec.begin(), nodes[right_child_idx].prims_idx_vec.end());
-        } else build_helper_sah(max_leaf_size, right_child_idx, ordered_prims);
+        build_helper_sah(max_leaf_size, left_child_idx, ordered_prims);
+        build_helper_sah(max_leaf_size, right_child_idx, ordered_prims);
         return;
     }
 
@@ -277,6 +307,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     build_helper_sah(max_leaf_size, root_idx, orderer_primitives);
     reorder(primitives, orderer_primitives);
     for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
+    for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu \n", nodes[i].id, nodes[i].start, nodes[i].size, nodes[i].l, nodes[i].r);
     printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
 }
 
@@ -316,30 +347,36 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
         }
     } else {
 
-        if (!nodes[current_node.l].bbox.empty_or_flat() && !nodes[current_node.r].bbox.empty_or_flat()) {
+        if (nodes[current_node.r].flat) {
+            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
             SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
-            SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
+            hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+        }
+        else {
 
-            if (hit_bbox_l.distance < hit_bbox_r.distance) {
-                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+            if (!nodes[current_node.l].bbox.empty_or_flat() && !nodes[current_node.r].bbox.empty_or_flat()) {
+                SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
+                SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
 
-                if (closest_hit.distance > hit_bbox_r.distance) {
-                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-                }
-            } else {
-                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-
-                if (closest_hit.distance > hit_bbox_l.distance) {
+                if (hit_bbox_l.distance < hit_bbox_r.distance) {
                     hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+                    if (closest_hit.distance > hit_bbox_r.distance) {
+                        hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
+                    }
+                } else {
+                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
+                    if (closest_hit.distance > hit_bbox_l.distance) {
+                        hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+                    }
                 }
-            }
-        } else {
-            if (nodes[current_node.r].bbox.empty_or_flat()) {
-                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
-                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
             } else {
-                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
-                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
+                if (nodes[current_node.r].bbox.empty_or_flat()) {
+                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
+                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
+                } else {
+                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
+                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
+                }
             }
         }
     }
