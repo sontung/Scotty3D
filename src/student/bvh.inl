@@ -58,7 +58,8 @@ float BVH<Primitive>::compute_partition_cost(Bucket* buckets, size_t partition_i
 
     float cost1 = box1.surface_area()*sa1.x;
     float cost2 = box2.surface_area()*sa2.x;
-    float total_cost = ((cost1+cost2)+box1.intersect(box2).surface_area())/bound_area;
+//    float cost3 = box1.intersect(box2).surface_area();
+    float total_cost = (cost1+cost2)/bound_area;
 
     return total_cost;
 }
@@ -297,7 +298,7 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
     if (!hit_bbox.hit) {
         return;
     }
-    else if (hit_bbox.distance > ray.dist_bounds.y || hit_bbox.distance < ray.dist_bounds.x) {
+    else if (hit_bbox.distance > ray.dist_bounds.y || hit_bbox.distance < 0.0) {
         return;
     }
     else if (hit_bbox.distance > closest_hit.distance) {
@@ -314,10 +315,11 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
             closest_hit = Trace::min(closest_hit, hit);
         }
     } else {
-        SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
-        SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
 
         if (!nodes[current_node.l].bbox.empty_or_flat() && !nodes[current_node.r].bbox.empty_or_flat()) {
+            SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
+            SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
+
             if (hit_bbox_l.distance < hit_bbox_r.distance) {
                 hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
 
@@ -332,17 +334,12 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
                 }
             }
         } else {
-            if (!nodes[current_node.r].bbox.empty_or_flat()) {
-                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-                if (closest_hit.distance > hit_bbox_r.distance) {
-                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-                }
+            if (nodes[current_node.r].bbox.empty_or_flat()) {
+                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
+                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
             } else {
-                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-
-                if (closest_hit.distance > hit_bbox_l.distance) {
-                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-                }
+                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
+                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
             }
         }
     }

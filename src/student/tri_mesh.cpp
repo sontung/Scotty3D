@@ -48,10 +48,8 @@ Trace Triangle::hit(const Ray& ray) const {
 
     // TODO (PathTracer): Task 2
     // Intersect this ray with a triangle defined by the three above points.
-    const float EPSILON = 0.0000001;
+    const float EPSILON = 0.00001;
     Vec3 s = ray.point-v_0.position;
-    Vec3 e1 = v_1.position-v_0.position;
-    Vec3 e2 = v_2.position-v_0.position;
     Vec3 cross_e1_d = cross(e1, ray.dir);
 
     float det = (dot(cross_e1_d, e2));
@@ -61,7 +59,7 @@ Trace Triangle::hit(const Ray& ray) const {
     Vec3 cross_s_e2 = cross(s, e2);
     float t = -f*dot(cross_s_e2, e1);
 
-    if (t>ray.dist_bounds.y || t<ray.dist_bounds.x) {
+    if (t>ray.dist_bounds.y || t<0.0) {
         ret.hit = false;
         return ret;
     }
@@ -82,6 +80,14 @@ Trace Triangle::hit(const Ray& ray) const {
 
 Triangle::Triangle(Tri_Mesh_Vert* verts, unsigned int v0, unsigned int v1, unsigned int v2)
     : vertex_list(verts), v0(v0), v1(v1), v2(v2) {
+    Tri_Mesh_Vert v_0 = vertex_list[v0];
+    Tri_Mesh_Vert v_1 = vertex_list[v1];
+    Tri_Mesh_Vert v_2 = vertex_list[v2];
+    (void)v_0;
+    (void)v_1;
+    (void)v_2;
+    e1 = v_1.position-v_0.position;
+    e2 = v_2.position-v_0.position;
 }
 
 Vec3 Triangle::sample(Vec3 from) const {

@@ -29,7 +29,7 @@ public:
 
 private:
     Triangle(Tri_Mesh_Vert* verts, unsigned int v0, unsigned int v1, unsigned int v2);
-
+    Vec3 e1, e2;
     unsigned int v0, v1, v2;
     Tri_Mesh_Vert* vertex_list;
     friend class Tri_Mesh;

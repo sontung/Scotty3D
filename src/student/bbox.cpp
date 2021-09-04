@@ -40,7 +40,8 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
     if (tzmax < tmax)
         tmax = tzmax;
     res.hit = true;
-    res.distance = tmin;
+    if (tmin > 0) res.distance = tmin;
+    else res.distance = tmax;
 
 //    if (ray.dist_bounds.x > tmin) ray.dist_bounds.x = tmin;
 //    if (ray.dist_bounds.y < tmax) ray.dist_bounds.y = tmax;
