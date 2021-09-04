@@ -40,10 +40,16 @@ struct BBox {
     void enclose(Vec3 point) {
         min = hmin(min, point);
         max = hmax(max, point);
+        empty_x = fabsf(min.x-max.x) <= 0.00001;
+        empty_y = fabsf(min.y-max.y) <= 0.00001;
+        empty_z = fabsf(min.z-max.z) <= 0.00001;
     }
     void enclose(BBox box) {
         min = hmin(min, box.min);
         max = hmax(max, box.max);
+        empty_x = fabsf(min.x-max.x) <= 0.00001;
+        empty_y = fabsf(min.y-max.y) <= 0.00001;
+        empty_z = fabsf(min.z-max.z) <= 0.00001;
     }
 
     /// Get center point of box
@@ -57,13 +63,17 @@ struct BBox {
     }
 
     bool empty_or_flat() const {
-        return fabsf(min.x-max.x) <= 0.00001 || fabsf(min.y-max.y) <= 0.00001 || fabsf(min.z-max.z) <= 0.00001;
+        return empty_x || empty_y || empty_z;
     }
 
+    bool empty_x = false;
+    bool empty_y = false;
+    bool empty_z = false;
+
     bool inside(Vec3 point) const {
-        bool x = (point.x >= min.x && point.x <= max.x) || (max.x==min.x);
-        bool y = (point.y >= min.y && point.y <= max.y) || (max.y==min.y);
-        bool z = (point.z >= min.z && point.z <= max.z) || (max.z==min.z);
+        bool x = (point.x >= min.x && point.x <= max.x) || empty_x;
+        bool y = (point.y >= min.y && point.y <= max.y) || empty_y;
+        bool z = (point.z >= min.z && point.z <= max.z) || empty_z;
         return x&&y&&z;
     }
 
@@ -152,7 +162,6 @@ struct BBox {
     }
 
     Vec3 min, max;
-    bool enclosed = false;
 };
 
 inline std::ostream& operator<<(std::ostream& out, BBox b) {

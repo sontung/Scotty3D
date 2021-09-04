@@ -174,9 +174,10 @@ void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index,
             nodes[right_child_idx].r = right_child_idx;
 
             build_helper_sah(max_leaf_size, left_child_idx, ordered_prims);
+            build_helper_sah(max_leaf_size, right_child_idx, ordered_prims);
             nodes[right_child_idx].flat = true;
-            ordered_prims.insert(ordered_prims.end(),
-                                 nodes[right_child_idx].prims_idx_vec.begin(), nodes[right_child_idx].prims_idx_vec.end());
+            //            ordered_prims.insert(ordered_prims.end(),
+            //                                 nodes[right_child_idx].prims_idx_vec.begin(), nodes[right_child_idx].prims_idx_vec.end());
             return;
         }
     }
@@ -307,7 +308,8 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     build_helper_sah(max_leaf_size, root_idx, orderer_primitives);
     reorder(primitives, orderer_primitives);
     for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
-    for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu \n", nodes[i].id, nodes[i].start, nodes[i].size, nodes[i].l, nodes[i].r);
+    for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu %d\n", nodes[i].id, nodes[i].start, nodes[i].size,
+                                                 nodes[i].l, nodes[i].r, nodes[i].flat);
     printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
 }
 
@@ -315,16 +317,6 @@ template<typename Primitive>
 void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
                                 const Node& current_node,
                                 SimpleTrace& hit_bbox) const {
-
-    if (current_node.bbox.empty_or_flat()) {
-        size_t start = current_node.start;
-        size_t size = current_node.size;
-        for (size_t i=start; i<start+size; i++) {
-            Trace hit = primitives[i].hit(ray);
-            closest_hit = Trace::min(closest_hit, hit);
-        }
-        return;
-    }
 
     if (!hit_bbox.hit) {
         return;
@@ -346,36 +338,21 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
             closest_hit = Trace::min(closest_hit, hit);
         }
     } else {
-
+        SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
+        SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
         if (nodes[current_node.r].flat) {
-            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
-            SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
             hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-        }
-        else {
-
-            if (!nodes[current_node.l].bbox.empty_or_flat() && !nodes[current_node.r].bbox.empty_or_flat()) {
-                SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
-                SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
-
-                if (hit_bbox_l.distance < hit_bbox_r.distance) {
-                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-                    if (closest_hit.distance > hit_bbox_r.distance) {
-                        hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-                    }
-                } else {
+            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
+        } else {
+            if (hit_bbox_l.distance < hit_bbox_r.distance) {
+                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
+                if (closest_hit.distance > hit_bbox_r.distance) {
                     hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-                    if (closest_hit.distance > hit_bbox_l.distance) {
-                        hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-                    }
                 }
             } else {
-                if (nodes[current_node.r].bbox.empty_or_flat()) {
-                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
-                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
-                } else {
-                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox);
-                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox);
+                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
+                if (closest_hit.distance > hit_bbox_l.distance) {
+                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
                 }
             }
         }
