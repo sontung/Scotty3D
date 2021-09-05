@@ -66,8 +66,6 @@ private:
                     const Node& current_node,
                     SimpleTrace& hit_bbox) const;
     BBox enclose_box(size_t start, size_t end);
-    void direct_access_for_flat_nodes(size_t node_idx,
-                                      size_t parent_idx);
     void build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims);
     void sah_split(size_t parent_index, size_t dim, size_t nb_buckets,
                    size_t start, size_t size,
@@ -78,10 +76,10 @@ private:
 
 
     BestBucketSplit best_bucket_split;
-    mutable size_t times_avg=0;
     float total_split_cost = 0.0;
     std::vector<Vec3> primitive_centroids;
     std::vector<Node> nodes;
+    mutable std::vector<size_t> node_visit_statuses;
     std::vector<Primitive> primitives;
     size_t root_idx = 0;
 };

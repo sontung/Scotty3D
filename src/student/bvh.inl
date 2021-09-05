@@ -127,71 +127,11 @@ void BVH<Primitive>::sah_split(size_t parent_index,
     }
 }
 
-template<typename Primitive>
-void BVH<Primitive>::direct_access_for_flat_nodes(size_t node_idx,
-                                                  size_t parent_idx) {
-    if (nodes[node_idx].bbox.empty_or_flat()) {
-        nodes[parent_idx].direct_access.push_back(node_idx);
-        return;
-    } else {
-        direct_access_for_flat_nodes(nodes[node_idx].l, parent_idx);
-        direct_access_for_flat_nodes(nodes[node_idx].r, parent_idx);
-        return;
-    }
-}
-
 
 template<typename Primitive>
 void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims) {
     size_t start = nodes[parent_index].start;
     size_t size = nodes[parent_index].size;
-
-    if (parent_index == 0) {
-        std::vector<size_t> flat_prims;
-        std::vector<size_t> non_flat_prims;
-        for (size_t i=0; i<primitives.size(); i++) {
-            if (primitives[i].bbox().empty_or_flat()) {
-                flat_prims.push_back(i);
-            }
-            else {
-                non_flat_prims.push_back(i);
-            }
-        }
-
-        if (flat_prims.size() > 0 && non_flat_prims.size() > 0) {
-            BBox box1, box2;
-            size_t left_child_idx = new_node(box1, 0, 0, 1, 1);
-            size_t right_child_idx = new_node(box2, 0, 0, 2, 2);
-            nodes[left_child_idx].id = left_child_idx;
-            nodes[right_child_idx].id = right_child_idx;
-
-            for (size_t i1=0; i1<non_flat_prims.size(); i1++) {
-                size_t prim_id = non_flat_prims[i1];
-                nodes[left_child_idx].prims_idx_vec.push_back(prim_id);
-            }
-            for (size_t i2=0; i2<flat_prims.size(); i2++) {
-                size_t prim_id = flat_prims[i2];
-                nodes[right_child_idx].prims_idx_vec.push_back(prim_id);
-            }
-
-
-            nodes[left_child_idx].start = 0;
-            nodes[left_child_idx].size = non_flat_prims.size();
-            nodes[right_child_idx].start = non_flat_prims.size();
-            nodes[right_child_idx].size = flat_prims.size();
-            nodes[parent_index].l = left_child_idx;
-            nodes[parent_index].r = right_child_idx;
-            nodes[left_child_idx].l = left_child_idx;
-            nodes[left_child_idx].r = left_child_idx;
-            nodes[right_child_idx].l = right_child_idx;
-            nodes[right_child_idx].r = right_child_idx;
-
-            build_helper_sah(max_leaf_size, left_child_idx, ordered_prims);
-            build_helper_sah(max_leaf_size, right_child_idx, ordered_prims);
-            nodes[right_child_idx].flat = true;
-            return;
-        }
-    }
 
     if (size < 1) {
         return;
@@ -298,7 +238,6 @@ void reorder(std::vector<Primitive>& vec, std::vector<size_t>& vOrder) {
 
 template<typename Primitive>
 void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size) {
-    printf("Building BVH with leaf size=%zu\n", max_leaf_size);
     nodes.clear();
     primitives = std::move(prims);
     for (size_t i=0; i<primitives.size(); i++) {
@@ -310,29 +249,28 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     BBox root_box = enclose_box(0, primitives.size());
     new_node(root_box, 0, primitives.size(), 0, 0);
 
-    for (size_t i=0; i<primitives.size(); i++) nodes[root_idx].prims_idx_vec.push_back(i);
-    std::vector<size_t> orderer_primitives;
-    orderer_primitives.reserve(primitives.size());
-    best_bucket_split.bucket_array.reserve(12);
-    Bucket empty_bucket;
-    for (size_t i=0; i<12; i++) best_bucket_split.bucket_array.push_back(empty_bucket);
-    build_helper_sah(max_leaf_size, root_idx, orderer_primitives);
-    reorder(primitives, orderer_primitives);
-    for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
-    for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu %d\n", nodes[i].id, nodes[i].start, nodes[i].size,
-                                                 nodes[i].l, nodes[i].r, nodes[i].flat);
-    if (nodes[nodes[root_idx].r].flat) {
-        direct_access_for_flat_nodes(nodes[root_idx].r,
-                                     nodes[root_idx].r);
+    if (!root_box.empty_or_flat()) {
+        printf("Building BVH with leaf size=%zu\n", max_leaf_size);
+
+        for (size_t i=0; i<primitives.size(); i++) nodes[root_idx].prims_idx_vec.push_back(i);
+        std::vector<size_t> orderer_primitives;
+        orderer_primitives.reserve(primitives.size());
+        best_bucket_split.bucket_array.reserve(12);
+        Bucket empty_bucket;
+        for (size_t i=0; i<12; i++) best_bucket_split.bucket_array.push_back(empty_bucket);
+        build_helper_sah(max_leaf_size, root_idx, orderer_primitives);
+        reorder(primitives, orderer_primitives);
+        for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
+        for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu %d %d\n", nodes[i].id, nodes[i].start, nodes[i].size,
+                                                     nodes[i].l, nodes[i].r, nodes[i].flat, nodes[i].bbox.empty_or_flat());
+        printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
     }
-    printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
 }
 
 template<typename Primitive>
 void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
                                 const Node& current_node,
                                 SimpleTrace& hit_bbox) const {
-
     if (!hit_bbox.hit) {
         return;
     }
@@ -355,32 +293,15 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
     } else {
         SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
         SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
-
-        if (nodes[current_node.r].flat) {
-            if (nodes[current_node.r].direct_access.size() > 0) {
-                SimpleTrace hit_bbox_c;
-                for (size_t i=0; i<nodes[current_node.r].direct_access.size(); i++) {
-                    size_t node_id = nodes[current_node.r].direct_access[i];
-                    hit_bbox_c = nodes[node_id].bbox.hit_simple(ray);
-                    if (hit_bbox_c.hit && closest_hit.distance > hit_bbox_c.distance && nodes[node_id].bbox.empty_or_flat()) {
-                        closest_hit.distance = hit_bbox_c.distance+0.1;
-                        ray.dist_bounds.y = hit_bbox_c.distance+0.1;
-                    }
-                }
-            }
+        if (hit_bbox_l.distance < hit_bbox_r.distance) {
             hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-        } else {
-            if (hit_bbox_l.distance < hit_bbox_r.distance) {
-                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-                if (closest_hit.distance > hit_bbox_r.distance) {
-                    hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-                }
-            } else {
+            if (closest_hit.distance > hit_bbox_r.distance) {
                 hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-                if (closest_hit.distance > hit_bbox_l.distance) {
-                    hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-                }
+            }
+        } else {
+            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
+            if (closest_hit.distance > hit_bbox_l.distance) {
+                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
             }
         }
     }
@@ -400,7 +321,6 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
     Trace ret;
     SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray);
     hit_helper(ray, ret, nodes[root_idx], hit_bbox);
-
 
     //    Trace ret2;
     //    for (size_t i=0; i<primitives.size(); i++) {
