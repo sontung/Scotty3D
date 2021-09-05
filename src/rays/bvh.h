@@ -37,6 +37,8 @@ private:
         size_t id = 0;
         size_t level=0;
         std::vector<size_t> prims_idx_vec;
+        std::vector<size_t> direct_access;  // direct access to flat bbox
+
         float split_cost=FLT_MAX;
         bool is_leaf() const;
         friend class BVH<Primitive>;
@@ -64,6 +66,8 @@ private:
                     const Node& current_node,
                     SimpleTrace& hit_bbox) const;
     BBox enclose_box(size_t start, size_t end);
+    void direct_access_for_flat_nodes(size_t node_idx,
+                                      size_t parent_idx);
     void build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims);
     void sah_split(size_t parent_index, size_t dim, size_t nb_buckets,
                    size_t start, size_t size,

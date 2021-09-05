@@ -43,6 +43,22 @@ struct BBox {
         empty_x = fabsf(min.x-max.x) <= 0.00001;
         empty_y = fabsf(min.y-max.y) <= 0.00001;
         empty_z = fabsf(min.z-max.z) <= 0.00001;
+        if (empty_or_flat()) {
+            if (empty_x) {
+                pointC.x = max.x;
+                pointC.y = max.y;
+                pointC.z = min.z;
+            } else if (empty_y) {
+                pointC.x = max.x;
+                pointC.y = max.y;
+                pointC.z = min.z;
+            } else if (empty_z) {
+                pointC.x = max.x;
+                pointC.y = min.y;
+                pointC.z = min.z;
+            }
+            normal = cross(pointC-min, pointC-max);
+        }
     }
     void enclose(BBox box) {
         min = hmin(min, box.min);
@@ -50,6 +66,22 @@ struct BBox {
         empty_x = fabsf(min.x-max.x) <= 0.00001;
         empty_y = fabsf(min.y-max.y) <= 0.00001;
         empty_z = fabsf(min.z-max.z) <= 0.00001;
+        if (empty_or_flat()) {
+            if (empty_x) {
+                pointC.x = max.x;
+                pointC.y = max.y;
+                pointC.z = min.z;
+            } else if (empty_y) {
+                pointC.x = max.x;
+                pointC.y = max.y;
+                pointC.z = min.z;
+            } else if (empty_z) {
+                pointC.x = max.x;
+                pointC.y = min.y;
+                pointC.z = min.z;
+            }
+            normal = cross(pointC-min, pointC-max);
+        }
     }
 
     /// Get center point of box
@@ -69,6 +101,7 @@ struct BBox {
     bool empty_x = false;
     bool empty_y = false;
     bool empty_z = false;
+    Vec3 pointC, normal;  // for intersection test of flat box
 
     bool inside(Vec3 point) const {
         bool x = (point.x >= min.x && point.x <= max.x) || empty_x;

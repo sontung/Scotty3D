@@ -127,6 +127,19 @@ void BVH<Primitive>::sah_split(size_t parent_index,
     }
 }
 
+template<typename Primitive>
+void BVH<Primitive>::direct_access_for_flat_nodes(size_t node_idx,
+                                                  size_t parent_idx) {
+    if (nodes[node_idx].bbox.empty_or_flat()) {
+        nodes[parent_idx].direct_access.push_back(node_idx);
+        return;
+    } else {
+        direct_access_for_flat_nodes(nodes[node_idx].l, parent_idx);
+        direct_access_for_flat_nodes(nodes[node_idx].r, parent_idx);
+        return;
+    }
+}
+
 
 template<typename Primitive>
 void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims) {
@@ -176,8 +189,6 @@ void BVH<Primitive>::build_helper_sah(size_t max_leaf_size, size_t parent_index,
             build_helper_sah(max_leaf_size, left_child_idx, ordered_prims);
             build_helper_sah(max_leaf_size, right_child_idx, ordered_prims);
             nodes[right_child_idx].flat = true;
-            //            ordered_prims.insert(ordered_prims.end(),
-            //                                 nodes[right_child_idx].prims_idx_vec.begin(), nodes[right_child_idx].prims_idx_vec.end());
             return;
         }
     }
@@ -310,6 +321,10 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
     for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu %d\n", nodes[i].id, nodes[i].start, nodes[i].size,
                                                  nodes[i].l, nodes[i].r, nodes[i].flat);
+    if (nodes[nodes[root_idx].r].flat) {
+        direct_access_for_flat_nodes(nodes[root_idx].r,
+                                     nodes[root_idx].r);
+    }
     printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
 }
 
@@ -321,7 +336,7 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
     if (!hit_bbox.hit) {
         return;
     }
-    else if (hit_bbox.distance > ray.dist_bounds.y || hit_bbox.distance < 0.0) {
+    else if (hit_bbox.distance > ray.dist_bounds.y) {
         return;
     }
     else if (hit_bbox.distance > closest_hit.distance) {
@@ -340,7 +355,19 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
     } else {
         SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
         SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
+
         if (nodes[current_node.r].flat) {
+            if (nodes[current_node.r].direct_access.size() > 0) {
+                SimpleTrace hit_bbox_c;
+                for (size_t i=0; i<nodes[current_node.r].direct_access.size(); i++) {
+                    size_t node_id = nodes[current_node.r].direct_access[i];
+                    hit_bbox_c = nodes[node_id].bbox.hit_simple(ray);
+                    if (hit_bbox_c.hit && closest_hit.distance > hit_bbox_c.distance && nodes[node_id].bbox.empty_or_flat()) {
+                        closest_hit.distance = hit_bbox_c.distance+0.1;
+                        ray.dist_bounds.y = hit_bbox_c.distance+0.1;
+                    }
+                }
+            }
             hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
             hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
         } else {

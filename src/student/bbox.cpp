@@ -18,23 +18,6 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
     res.hit = false;
 
     if (empty_or_flat()) {
-        Vec3 pointC;
-        if (empty_x) {
-            pointC.x = max.x;
-            pointC.y = max.y;
-            pointC.z = min.z;
-        } else if (empty_y) {
-            pointC.x = max.x;
-            pointC.y = max.y;
-            pointC.z = min.z;
-        } else if (empty_z) {
-            pointC.x = max.x;
-            pointC.y = min.y;
-            pointC.z = min.z;
-        } else {
-            assert(false);
-        }
-        Vec3 normal = cross(pointC-min, pointC-max);
         float denom = dot(normal, ray.dir);
         const float EPSILON = 0.0000001;
         if (denom > -EPSILON && denom < EPSILON) {return res;}
