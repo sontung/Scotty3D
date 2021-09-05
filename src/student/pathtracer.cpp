@@ -65,19 +65,18 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
     // Pathtracer::sample_direct_lighting().
 
     Spectrum radiance;
-    float coeff = 2*PI_F;
     size_t nb_samples = 1;
     for (size_t i=0; i<nb_samples; i++) {
         Scatter scat = hit.bsdf.scatter(hit.out_dir);
-        Vec3 in_dir = scat.direction+hit.pos;
-        Vec3 in_dir_world_space = hit.object_to_world*in_dir;
-        float cos_theta = dot(hit.normal, in_dir)/(hit.normal.norm()*in_dir.norm());
+        Vec3 in_dir = scat.direction;
+        Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
+        Vec3 normal_world_space = hit.object_to_world.rotate(hit.normal).unit();
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = hit.depth-1;
         auto [emissive, reflected] = trace(new_ray);
-        radiance += scat.attenuation/PI_F*cos_theta*(emissive+reflected);
+//        float cos_theta = fabsf(dot(normal_world_space, in_dir_world_space));
+        radiance += scat.attenuation*PI_F*(reflected);
     }
-    radiance *= coeff/nb_samples;
     return radiance;
 }
 
@@ -97,19 +96,18 @@ Spectrum Pathtracer::sample_direct_lighting(const Shading_Info& hit) {
     // incoming light (the first value returned by Pathtracer::trace()). Note that since we only
     // want emissive, we can trace a ray with depth = 0.
 
-    float coeff = 2*PI_F;
     size_t nb_samples = 1;
     for (size_t i=0; i<nb_samples; i++) {
         Scatter scat = hit.bsdf.scatter(hit.out_dir);
-        Vec3 in_dir = scat.direction+hit.pos;
-        Vec3 in_dir_world_space = hit.object_to_world*in_dir;
-        float cos_theta = dot(hit.normal, in_dir)/(hit.normal.norm()*in_dir.norm());
+        Vec3 in_dir = scat.direction;
+        Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
+        Vec3 normal_world_space = hit.object_to_world.rotate(hit.normal).unit();
+//        float cos_theta = fabsf(dot(normal_world_space, in_dir_world_space));
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = 0;
         auto [emissive, reflected] = trace(new_ray);
-        radiance += scat.attenuation/PI_F*cos_theta*(emissive);
+        radiance += scat.attenuation*PI_F*(emissive);
     }
-    radiance *= coeff/nb_samples;
 
     // TODO (PathTrace): Task 6
 
@@ -165,7 +163,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // TODO (PathTracer): Task 4
     // You will want to change the default normal_colors in debug.h, or delete this early out.
-    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
+//    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
 
     // If the ray has reached maximum depth, stop tracing
     if(ray.depth == 0) return {};
@@ -178,8 +176,9 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
     Shading_Info hit = {bsdf,    world_to_object, object_to_world, result.position,
                         out_dir, result.normal,   ray.depth};
 
-
     // Sample and return light reflected through the intersection
+//    return {{}, sample_direct_lighting(hit)};
+//    return {{}, sample_indirect_lighting(hit)};
     return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
 }
 
