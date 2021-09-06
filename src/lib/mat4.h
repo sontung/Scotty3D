@@ -356,9 +356,10 @@ inline Mat4 Mat4::rotate_to(Vec3 dir) {
 
     if(std::abs(dir.y - 1.0f) < EPS_F)
         return Mat4::I;
-    else if(std::abs(dir.y + 1.0f) < EPS_F)
+    else if(std::abs(dir.y + 1.0f) < EPS_F) {
         return Mat4{Vec4{1.0f, 0.0f, 0.0f, 0.0f}, Vec4{0.0f, -1.0f, 0.0f, 0.0f},
                     Vec4{0.0f, 0.0f, 1.0f, 0.0}, Vec4{0.0f, 0.0f, 0.0f, 1.0f}};
+    }
     else {
         Vec3 x = cross(dir, Vec3{0.0f, 1.0f, 0.0f}).unit();
         Vec3 z = cross(x, dir).unit();

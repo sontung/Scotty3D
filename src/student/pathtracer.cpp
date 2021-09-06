@@ -29,14 +29,21 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
     Ray ray = camera.generate_ray(xy);
 
 //    Vec3 des;
-//    des.x = -0.165;
-//    des.y = 0.2;
-//    des.z = -0.026;
+//    des.x = 0.5;
+//    des.y = 0.32;
+//    des.z = 0.399;
 //    Vec3 final_dir = des-ray.point;
 //    ray.dir = final_dir.unit();
 
+//    ray.point.x=0.5;
+//    ray.point.y=0.3266;
+//    ray.point.z=0.399373;
+//    ray.dir.x=0.383263;
+//    ray.dir.y=0.21925;
+//    ray.dir.z=-0.89724;
+
     ray.depth = max_depth;
-    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
+//    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
 
     // Pathtracer::trace() returns the incoming light split into emissive and reflected components.
     auto [emissive, reflected] = trace(ray);
@@ -69,13 +76,18 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
     for (size_t i=0; i<nb_samples; i++) {
         Scatter scat = hit.bsdf.scatter(hit.out_dir);
         Vec3 in_dir = scat.direction;
+
+        float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
+
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
-        Vec3 normal_world_space = hit.object_to_world.rotate(hit.normal).unit();
-        Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
+        Ray new_ray(hit.pos, in_dir_world_space, Vec2{0.1, std::numeric_limits<float>::max()});
+        new_ray.must_hit = true;
         new_ray.depth = hit.depth-1;
+        new_ray.normal33 = hit.world_to_object.rotate(hit.normal).unit();
+        new_ray.outdir33 = hit.world_to_object.rotate(hit.out_dir).unit();
         auto [emissive, reflected] = trace(new_ray);
-//        float cos_theta = fabsf(dot(normal_world_space, in_dir_world_space));
-        radiance += scat.attenuation*PI_F*(reflected);
+
+        radiance += scat.attenuation*PI_F*cos_theta*(emissive+reflected);
     }
     return radiance;
 }
@@ -101,12 +113,11 @@ Spectrum Pathtracer::sample_direct_lighting(const Shading_Info& hit) {
         Scatter scat = hit.bsdf.scatter(hit.out_dir);
         Vec3 in_dir = scat.direction;
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
-        Vec3 normal_world_space = hit.object_to_world.rotate(hit.normal).unit();
-//        float cos_theta = fabsf(dot(normal_world_space, in_dir_world_space));
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = 0;
+        float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
         auto [emissive, reflected] = trace(new_ray);
-        radiance += scat.attenuation*PI_F*(emissive);
+        radiance += scat.attenuation*PI_F*cos_theta*(emissive);
     }
 
     // TODO (PathTrace): Task 6
@@ -142,6 +153,38 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // Trace ray into scene.
     Trace result = scene.hit(ray);
+
+    if (ray.must_hit) {
+        if (!result.hit) {
+//        std::cout<<ray.point<<ray.dir<<"\n";
+        if(RNG::coin_flip(0.000005f)) {
+            Ray anormal;
+            anormal.point = ray.point;
+            anormal.dir = ray.normal33;
+            Spectrum color;
+            color.r=1.0;
+            color.g=0.0;
+            color.b=0.0;
+
+            Ray anormal2;
+            anormal2.point = ray.point;
+            anormal2.dir = ray.outdir33;
+            Spectrum color2;
+            color2.r=1.0;
+            color2.g=1.0;
+            color2.b=0.0;
+            std::cout<<ray.outdir33<<ray.normal33<<"\n";
+
+            log_ray(ray, 2.0f);
+            log_ray(anormal, 2.0f, color);
+            log_ray(anormal2, 2.0f, color2);
+
+
+        }
+        }
+//        assert(result.hit);
+    }
+
     if(!result.hit) {
 
         // If no surfaces were hit, sample the environemnt map.
@@ -178,8 +221,8 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // Sample and return light reflected through the intersection
 //    return {{}, sample_direct_lighting(hit)};
-//    return {{}, sample_indirect_lighting(hit)};
-    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
+    return {{}, sample_indirect_lighting(hit)};
+//    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
 }
 
 } // namespace PT

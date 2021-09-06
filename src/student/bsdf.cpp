@@ -41,6 +41,9 @@ Scatter BSDF_Lambertian::scatter(Vec3 out_dir) const {
 
     Scatter ret;
     ret.direction = sampler.sample();
+//    if (out_dir.y > 0) {
+//        ret.direction.y *= -1;
+//    }
     ret.attenuation = evaluate(out_dir, ret.direction);
     return ret;
 }
