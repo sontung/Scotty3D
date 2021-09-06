@@ -37,9 +37,14 @@ Trace Sphere::hit(const Ray& ray) const {
     if (m2>r2) return ret;
     float q = sqrtf(r2-m2);
     float t;
-    if (l2>r2) t=s-q;
-    else t=s+q;
-    if (t > ray.dist_bounds.y) return ret;
+    if (l2>r2) {
+        t=s-q;
+        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) return ret;
+    }
+    else {
+        t=s+q;
+        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) return ret;
+    }
     ray.dist_bounds.y = t;
     ret.distance = t;
     ret.position = ray.point+t*ray.dir;

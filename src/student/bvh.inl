@@ -321,6 +321,7 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
     Trace ret;
     SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray);
     hit_helper(ray, ret, nodes[root_idx], hit_bbox);
+    if (ret.hit) assert(ret.distance>0.0);
 
     //    Trace ret2;
     //    for (size_t i=0; i<primitives.size(); i++) {

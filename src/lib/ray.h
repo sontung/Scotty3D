@@ -56,11 +56,7 @@ struct Ray {
 
     /// some properties for box intersection
     Vec3 invdir;
-    mutable Vec3 normal33;
-    mutable Vec3 outdir33;
-
     int sign[3];
-    mutable bool must_hit=false;
 };
 
 inline std::ostream& operator<<(std::ostream& out, Ray r) {

@@ -4,6 +4,7 @@
 #include "../util/rand.h"
 #include "debug.h"
 #include <iostream>
+#include <math.h>
 
 namespace PT {
 
@@ -78,13 +79,9 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
         Vec3 in_dir = scat.direction;
 
         float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
-
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
-        Ray new_ray(hit.pos, in_dir_world_space, Vec2{0.1, std::numeric_limits<float>::max()});
-        new_ray.must_hit = true;
+        Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = hit.depth-1;
-        new_ray.normal33 = hit.world_to_object.rotate(hit.normal).unit();
-        new_ray.outdir33 = hit.world_to_object.rotate(hit.out_dir).unit();
         auto [emissive, reflected] = trace(new_ray);
 
         radiance += scat.attenuation*PI_F*cos_theta*(emissive+reflected);
@@ -154,37 +151,6 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
     // Trace ray into scene.
     Trace result = scene.hit(ray);
 
-    if (ray.must_hit) {
-        if (!result.hit) {
-//        std::cout<<ray.point<<ray.dir<<"\n";
-        if(RNG::coin_flip(0.000005f)) {
-            Ray anormal;
-            anormal.point = ray.point;
-            anormal.dir = ray.normal33;
-            Spectrum color;
-            color.r=1.0;
-            color.g=0.0;
-            color.b=0.0;
-
-            Ray anormal2;
-            anormal2.point = ray.point;
-            anormal2.dir = ray.outdir33;
-            Spectrum color2;
-            color2.r=1.0;
-            color2.g=1.0;
-            color2.b=0.0;
-            std::cout<<ray.outdir33<<ray.normal33<<"\n";
-
-            log_ray(ray, 2.0f);
-            log_ray(anormal, 2.0f, color);
-            log_ray(anormal2, 2.0f, color2);
-
-
-        }
-        }
-//        assert(result.hit);
-    }
-
     if(!result.hit) {
 
         // If no surfaces were hit, sample the environemnt map.
@@ -220,9 +186,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
                         out_dir, result.normal,   ray.depth};
 
     // Sample and return light reflected through the intersection
-//    return {{}, sample_direct_lighting(hit)};
-    return {{}, sample_indirect_lighting(hit)};
-//    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
+    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
 }
 
 } // namespace PT
