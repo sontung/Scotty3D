@@ -24,9 +24,9 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
         Vec3 p0l0 = pointC-ray.point;
         float t = dot(p0l0, normal)/denom;
 
-        if (t < 0.0 || t > ray.dist_bounds.y) {
-            return res;
-        }
+//        if (t < ray.dist_bounds.x || t > ray.dist_bounds.y) {
+//            return res;
+//        }
 
         Vec3 hit_pos = ray.point+t*ray.dir;
         if (inside(hit_pos)) {

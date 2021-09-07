@@ -1,6 +1,7 @@
 
 #include "../rays/shapes.h"
 #include "debug.h"
+#include <iostream>
 
 namespace PT {
 
@@ -24,7 +25,6 @@ Trace Sphere::hit(const Ray& ray) const {
     // ray.dist_bounds! For example, if there are two intersections,
     // but only the _later_ one is within ray.dist_bounds, you should
     // return that one!
-
     Trace ret;
     ret.origin = ray.point;
 
@@ -39,11 +39,19 @@ Trace Sphere::hit(const Ray& ray) const {
     float t;
     if (l2>r2) {
         t=s-q;
-        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) return ret;
+        ret.distance = t;
+
+        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) {
+            return ret;
+        }
     }
     else {
         t=s+q;
-        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) return ret;
+        ret.distance = t;
+
+        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) {
+            return ret;
+        }
     }
     ray.dist_bounds.y = t;
     ret.distance = t;

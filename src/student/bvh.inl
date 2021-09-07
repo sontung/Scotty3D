@@ -321,21 +321,33 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
     Trace ret;
     SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray);
     hit_helper(ray, ret, nodes[root_idx], hit_bbox);
-    if (ret.hit) assert(ret.distance>0.0);
+//    if (ret.hit) assert(ret.distance>0.0);
 
-    //    Trace ret2;
-    //    for (size_t i=0; i<primitives.size(); i++) {
-    //        Trace hit = primitives[i].hit(ray);
-    //        ret2 = Trace::min(ret2, hit);
-    //    }
+    Trace ret2;
+    for (size_t i=0; i<primitives.size(); i++) {
+        Trace hit = primitives[i].hit(ray);
+//        if (ret2.distance>hit.distance) printf("%zu %f -> %f\n",i, ret2.distance, hit.distance);
+        ret2 = Trace::min(ret2, hit);
+    }
 
-    //    assert(ret.hit==ret2.hit);
-    //    if (ret2.hit) {
-    //        printf("%f %f\n", ret.distance, ret2.distance);
-    //        assert(fabsf(ret.distance-ret2.distance) <= 0.0001);
-    //    }
+//    if (primitives.size() > 7) {
+//    Trace hit1 = primitives[1].hit(ray);
+//    Trace hit2 = primitives[2].hit(ray);
+//    if (hit2.hit) printf("%f %f\n", hit2.distance, ret2.distance);
+//    if (hit1.hit) printf("%f %f\n", hit1.distance, ret2.distance);
 
-    return ret;
+//    }
+
+    assert(ret.hit==ret2.hit);
+    if (ret2.hit) {
+        if (fabsf(ret.distance-ret2.distance) <= 0.0001) {
+            printf("%f %f\n", ret.distance, ret2.distance);
+            exit(0);
+        }
+//        assert(fabsf(ret.distance-ret2.distance) <= 0.0001);
+    }
+
+    return ret2;
 }
 
 template<typename Primitive>

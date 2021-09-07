@@ -29,22 +29,21 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
 
     Ray ray = camera.generate_ray(xy);
 
-//    Vec3 des;
-//    des.x = 0.5;
-//    des.y = 0.32;
-//    des.z = 0.399;
-//    Vec3 final_dir = des-ray.point;
-//    ray.dir = final_dir.unit();
+    Vec3 des;
+    des.x = 0.215;
+    des.y = 0.2;
+    des.z = 0.284;
 
-//    ray.point.x=0.5;
-//    ray.point.y=0.3266;
-//    ray.point.z=0.399373;
-//    ray.dir.x=0.383263;
-//    ray.dir.y=0.21925;
-//    ray.dir.z=-0.89724;
+    ray.point.x=0.5;
+    ray.point.y=0.0;
+    ray.point.z=0.5;
+    Vec3 final_dir = des-ray.point;
+    ray.dir = final_dir.unit();
+
+
 
     ray.depth = max_depth;
-//    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
+    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
 
     // Pathtracer::trace() returns the incoming light split into emissive and reflected components.
     auto [emissive, reflected] = trace(ray);
@@ -71,7 +70,6 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
     // You should only use the indirect component of incoming light (the second value returned
     // by Pathtracer::trace()), as the direct component will be computed in
     // Pathtracer::sample_direct_lighting().
-
     Spectrum radiance;
     size_t nb_samples = 1;
     for (size_t i=0; i<nb_samples; i++) {
@@ -84,7 +82,7 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
         new_ray.depth = hit.depth-1;
         auto [emissive, reflected] = trace(new_ray);
 
-        radiance += scat.attenuation*PI_F*cos_theta*(emissive+reflected);
+        radiance += scat.attenuation*PI_F*cos_theta*(reflected);
     }
     return radiance;
 }
@@ -168,7 +166,10 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // If the BSDF is emissive, stop tracing and return the emitted light
     Spectrum emissive = bsdf.emissive();
-    if(emissive.luma() > 0.0f) return {emissive, {}};
+    if(emissive.luma() > 0.0f) {
+        log_ray(ray, 2.0f);
+        return {emissive, {}};
+    }
 
     // TODO (PathTracer): Task 4
     // You will want to change the default normal_colors in debug.h, or delete this early out.
@@ -186,7 +187,8 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
                         out_dir, result.normal,   ray.depth};
 
     // Sample and return light reflected through the intersection
-    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
+    return {{}, sample_direct_lighting(hit)};
+//    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
 }
 
 } // namespace PT
