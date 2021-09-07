@@ -270,16 +270,19 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 template<typename Primitive>
 void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
                                 const Node& current_node,
-                                SimpleTrace& hit_bbox) const {
+                                SimpleTrace& hit_bbox, bool verbose) const {
+    if (verbose) {
+        std::cout<<"verbosing\n";
+
+        if (closest_hit.hit) {
+            printf("hit at %f\n", closest_hit.distance);
+        }
+    }
     if (!hit_bbox.hit) {
+        if (verbose) printf("current n %zu %zu bbox no hit %d\n", current_node.start, current_node.size, current_node.bbox.empty_or_flat());
         return;
     }
-    else if (hit_bbox.distance > ray.dist_bounds.y) {
-        return;
-    }
-    else if (hit_bbox.distance > closest_hit.distance) {
-        return;
-    }
+
 
 
     if (current_node.is_leaf()) {
@@ -290,19 +293,21 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
             Trace hit = primitives[i].hit(ray);
             closest_hit = Trace::min(closest_hit, hit);
         }
+        if (verbose && closest_hit.hit) printf("leaf %f\n", closest_hit.distance);
+
     } else {
-        SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
-        SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
+        SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray, verbose);
+        SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray, verbose);
         if (hit_bbox_l.distance < hit_bbox_r.distance) {
-            hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-            if (closest_hit.distance > hit_bbox_r.distance) {
-                hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-            }
+            if (verbose) std::cout<<"left\n";
+            hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l, verbose);
+            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r, verbose);
+
         } else {
-            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-            if (closest_hit.distance > hit_bbox_l.distance) {
-                hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-            }
+            if (verbose) std::cout<<"right\n";
+            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r, verbose);
+            hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l, verbose);
+
         }
     }
 }
@@ -319,35 +324,39 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 
 
     Trace ret;
-    SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray);
-    hit_helper(ray, ret, nodes[root_idx], hit_bbox);
-//    if (ret.hit) assert(ret.distance>0.0);
+    SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray, false);
+    hit_helper(ray, ret, nodes[root_idx], hit_bbox, false);
 
-    Trace ret2;
-    for (size_t i=0; i<primitives.size(); i++) {
-        Trace hit = primitives[i].hit(ray);
-//        if (ret2.distance>hit.distance) printf("%zu %f -> %f\n",i, ret2.distance, hit.distance);
-        ret2 = Trace::min(ret2, hit);
-    }
-
-//    if (primitives.size() > 7) {
-//    Trace hit1 = primitives[1].hit(ray);
-//    Trace hit2 = primitives[2].hit(ray);
-//    if (hit2.hit) printf("%f %f\n", hit2.distance, ret2.distance);
-//    if (hit1.hit) printf("%f %f\n", hit1.distance, ret2.distance);
-
+    ///
+    /// debugging
+    ///
+//    Trace ret2;
+//    for (size_t i=0; i<primitives.size(); i++) {
+//        Trace hit = primitives[i].hit(ray);
+//        if (hit.hit && hit.distance>EPS_F) ret2 = Trace::min(ret2, hit);
 //    }
 
-    assert(ret.hit==ret2.hit);
-    if (ret2.hit) {
-        if (fabsf(ret.distance-ret2.distance) <= 0.0001) {
-            printf("%f %f\n", ret.distance, ret2.distance);
-            exit(0);
-        }
+//    assert(ret.hit==ret2.hit);
+//    if (ret2.hit) {
+//        if (fabsf(ret.distance-ret2.distance) >= 0.0001) {
+//            printf("%f %f primsize=%zu\n", ret.distance, ret2.distance, primitives.size());
+//            Trace ret2;
+//            for (size_t i=0; i<primitives.size(); i++) {
+//                Trace hit = primitives[i].hit(ray);
+//                if (hit.hit) {
+//                    printf("%zu %f\n", i, hit.distance);
+//                }
+//                ret2 = Trace::min(ret2, hit);
+//            }
+//            Trace ret33;
+//            SimpleTrace hit_bbox = nodes[root_idx].bbox.hit_simple(ray, true);
+//            hit_helper(ray, ret33, nodes[root_idx], hit_bbox, true);
+//            exit(0);
+//        }
 //        assert(fabsf(ret.distance-ret2.distance) <= 0.0001);
-    }
+//    }
 
-    return ret2;
+    return ret;
 }
 
 template<typename Primitive>

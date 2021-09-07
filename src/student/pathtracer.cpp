@@ -29,16 +29,16 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
 
     Ray ray = camera.generate_ray(xy);
 
-    Vec3 des;
-    des.x = 0.215;
-    des.y = 0.2;
-    des.z = 0.284;
+//    Vec3 des;
+//    des.x = 0.215;
+//    des.y = 0.2;
+//    des.z = 0.284;
 
-    ray.point.x=0.5;
-    ray.point.y=0.0;
-    ray.point.z=0.5;
-    Vec3 final_dir = des-ray.point;
-    ray.dir = final_dir.unit();
+//    ray.point.x=0.5;
+//    ray.point.y=0.0;
+//    ray.point.z=0.5;
+//    Vec3 final_dir = des-ray.point;
+//    ray.dir = final_dir.unit();
 
 
 
@@ -187,8 +187,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
                         out_dir, result.normal,   ray.depth};
 
     // Sample and return light reflected through the intersection
-    return {{}, sample_direct_lighting(hit)};
-//    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
+    return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};
 }
 
 } // namespace PT

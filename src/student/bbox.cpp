@@ -13,20 +13,27 @@ bool BBox::hit(const Ray& ray, Vec2& times) const {
     return false;
 }
 
-SimpleTrace BBox::hit_simple(const Ray& ray) const {
+SimpleTrace BBox::hit_simple(const Ray& ray, bool verbose) const {
     SimpleTrace res;
     res.hit = false;
 
+    if (verbose) std::cout<<"verbosing hit bbox\n";
+
+
     if (empty_or_flat()) {
+        if (verbose) std::cout<<"empty\n";
+
         float denom = dot(normal, ray.dir);
-        const float EPSILON = 0.0000001;
-        if (denom > -EPSILON && denom < EPSILON) {return res;}
+        if (denom > -EPS_F && denom < EPS_F) {
+            if (verbose) std::cout<<"zero denom\n";
+            return res;
+        }
         Vec3 p0l0 = pointC-ray.point;
         float t = dot(p0l0, normal)/denom;
 
-//        if (t < ray.dist_bounds.x || t > ray.dist_bounds.y) {
-//            return res;
-//        }
+    //        if (t < ray.dist_bounds.x || t > ray.dist_bounds.y) {
+    //            return res;
+    //        }
 
         Vec3 hit_pos = ray.point+t*ray.dir;
         if (inside(hit_pos)) {
@@ -37,6 +44,9 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
             return res;
         }
     }
+
+    if (verbose) std::cout<<"normal\n";
+
 
     float tmin, tmax, tymin, tymax, tzmin, tzmax;
     Vec3 bounds[] = {min, max};

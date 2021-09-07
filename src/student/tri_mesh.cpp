@@ -48,12 +48,11 @@ Trace Triangle::hit(const Ray& ray) const {
 
     // TODO (PathTracer): Task 2
     // Intersect this ray with a triangle defined by the three above points.
-    const float EPSILON = 0.00001;
     Vec3 s = ray.point-v_0.position;
     Vec3 cross_e1_d = cross(e1, ray.dir);
 
     float det = (dot(cross_e1_d, e2));
-    if (det > -EPSILON && det < EPSILON) {ret.hit = false; return ret;}
+    if (det > -EPS_F && det < EPS_F) {ret.hit = false; return ret;}
 
     float f = 1/det;
     Vec3 cross_s_e2 = cross(s, e2);

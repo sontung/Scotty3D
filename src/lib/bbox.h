@@ -63,9 +63,9 @@ struct BBox {
     void enclose(BBox box) {
         min = hmin(min, box.min);
         max = hmax(max, box.max);
-        empty_x = fabsf(min.x-max.x) <= 0.00001;
-        empty_y = fabsf(min.y-max.y) <= 0.00001;
-        empty_z = fabsf(min.z-max.z) <= 0.00001;
+        empty_x = fabsf(min.x-max.x) <= EPS_F;
+        empty_y = fabsf(min.y-max.y) <= EPS_F;
+        empty_z = fabsf(min.z-max.z) <= EPS_F;
         if (empty_or_flat()) {
             if (empty_x) {
                 pointC.x = max.x;
@@ -104,9 +104,9 @@ struct BBox {
     Vec3 pointC, normal;  // for intersection test of flat box
 
     bool inside(Vec3 point) const {
-        bool x = (point.x >= min.x && point.x <= max.x) || empty_x;
-        bool y = (point.y >= min.y && point.y <= max.y) || empty_y;
-        bool z = (point.z >= min.z && point.z <= max.z) || empty_z;
+        bool x = (point.x-min.x >= 0.0 && point.x-max.x <= 0.0) || empty_x;
+        bool y = (point.y-min.y >= 0.0 && point.y-max.y <= 0.0) || empty_y;
+        bool z = (point.z-min.z >= 0.0 && point.z-max.z <= 0.0) || empty_z;
         return x&&y&&z;
     }
 
@@ -149,7 +149,7 @@ struct BBox {
 
     // TODO (PathTracer): see student/bbox.cpp
     bool hit(const Ray& ray, Vec2& times) const;
-    SimpleTrace hit_simple(const Ray& ray) const;
+    SimpleTrace hit_simple(const Ray& ray, bool verbose) const;
 
 
     /// Get the eight corner points of the bounding box
