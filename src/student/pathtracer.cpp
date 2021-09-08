@@ -30,20 +30,21 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
     Ray ray = camera.generate_ray(xy);
 
 //    Vec3 des;
-//    des.x = 0.215;
-//    des.y = 0.2;
-//    des.z = 0.284;
+//    des.x = 0.495265;
+//    des.y = 0.766083;
+//    des.z = -0.40967;
 
-//    ray.point.x=0.5;
-//    ray.point.y=0.0;
-//    ray.point.z=0.5;
+//    ray.point.x=0.0457429;
+//    ray.point.y=0.30547;
+//    ray.point.z=0.266306;
 //    Vec3 final_dir = des-ray.point;
 //    ray.dir = final_dir.unit();
+//    ray.dir=des;
 
 
 
     ray.depth = max_depth;
-    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
+//    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
 
     // Pathtracer::trace() returns the incoming light split into emissive and reflected components.
     auto [emissive, reflected] = trace(ray);
@@ -76,13 +77,13 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
         Scatter scat = hit.bsdf.scatter(hit.out_dir);
         Vec3 in_dir = scat.direction;
 
-        float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
+//        float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = hit.depth-1;
         auto [emissive, reflected] = trace(new_ray);
 
-        radiance += scat.attenuation*PI_F*cos_theta*(reflected);
+        radiance += scat.attenuation/hit.bsdf.pdf(hit.out_dir, in_dir)*(reflected);
     }
     return radiance;
 }
@@ -110,9 +111,9 @@ Spectrum Pathtracer::sample_direct_lighting(const Shading_Info& hit) {
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = 0;
-        float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
+//        float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
         auto [emissive, reflected] = trace(new_ray);
-        radiance += scat.attenuation*PI_F*cos_theta*(emissive);
+        radiance += scat.attenuation/hit.bsdf.pdf(hit.out_dir, in_dir)*(emissive);
     }
 
     // TODO (PathTrace): Task 6
@@ -163,11 +164,11 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
     if(!bsdf.is_sided() && dot(result.normal, ray.dir) > 0.0f) {
         result.normal = -result.normal;
     }
+//    if(RNG::coin_flip(0.0000005f)) log_ray(ray, 2.0f);
 
     // If the BSDF is emissive, stop tracing and return the emitted light
     Spectrum emissive = bsdf.emissive();
     if(emissive.luma() > 0.0f) {
-        log_ray(ray, 2.0f);
         return {emissive, {}};
     }
 

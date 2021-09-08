@@ -41,9 +41,6 @@ Scatter BSDF_Lambertian::scatter(Vec3 out_dir) const {
 
     Scatter ret;
     ret.direction = sampler.sample();
-//    if (out_dir.y < 0) {
-//        ret.direction.y *= -1;
-//    }
     ret.attenuation = evaluate(out_dir, ret.direction);
     return ret;
 }
@@ -62,7 +59,7 @@ float BSDF_Lambertian::pdf(Vec3 out_dir, Vec3 in_dir) const {
     // TODO (PathTracer): Task 4
 
     // Compute the PDF for sampling in_dir from the cosine-weighted hemisphere distribution.
-    return PI_F;
+    return 1.0f/PI_F;
 }
 
 Scatter BSDF_Mirror::scatter(Vec3 out_dir) const {

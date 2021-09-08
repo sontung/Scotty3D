@@ -39,13 +39,13 @@ Trace Sphere::hit(const Ray& ray) const {
     float t;
     if (l2>r2) {
         t=s-q;
-        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) {
+        if (t >= ray.dist_bounds.y || t <= EPS_F) {
             return ret;
         }
     }
     else {
         t=s+q;
-        if (t > ray.dist_bounds.y || t < ray.dist_bounds.x) {
+        if (t >= ray.dist_bounds.y || t <= EPS_F) {
             return ret;
         }
     }

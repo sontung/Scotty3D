@@ -44,7 +44,7 @@ private:
         const BSDF& bsdf;
         Mat4 world_to_object, object_to_world;
         Vec3 pos, out_dir, normal;
-        size_t depth = 0;
+        size_t depth = 0;;
     };
 
     void build_scene(Scene& scene);

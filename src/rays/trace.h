@@ -11,6 +11,7 @@ struct Trace {
     float distance = std::numeric_limits<float>::max();
     Vec3 position, normal, origin;
     int material = 0;
+    size_t origin_prim = 0;
 
     static Trace min(const Trace& l, const Trace& r) {
         if(l.hit && r.hit) {
