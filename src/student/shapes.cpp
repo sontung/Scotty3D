@@ -43,6 +43,7 @@ Trace Sphere::hit(const Ray& ray) const {
             return ret;
         }
     }
+    else if (fabsf(l2-r2) <= EPS_F) return ret;  // make sure to not count as a hit when ray origin is on this sphere
     else {
         t=s+q;
         if (t >= ray.dist_bounds.y || t <= EPS_F) {

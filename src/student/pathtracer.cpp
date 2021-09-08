@@ -37,14 +37,15 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
 //    ray.point.x=0.0457429;
 //    ray.point.y=0.30547;
 //    ray.point.z=0.266306;
+//    ray.dir=des;
+
 //    Vec3 final_dir = des-ray.point;
 //    ray.dir = final_dir.unit();
-//    ray.dir=des;
 
 
 
     ray.depth = max_depth;
-//    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
+    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
 
     // Pathtracer::trace() returns the incoming light split into emissive and reflected components.
     auto [emissive, reflected] = trace(ray);
@@ -148,6 +149,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
     // surface the ray hits, and reflected through that point from other sources.
 
     // Trace ray into scene.
+
     Trace result = scene.hit(ray);
 
     if(!result.hit) {
