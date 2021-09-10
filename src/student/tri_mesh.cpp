@@ -52,21 +52,22 @@ Trace Triangle::hit(const Ray& ray) const {
     Vec3 cross_e1_d = cross(e1, ray.dir);
 
     float det = (dot(cross_e1_d, e2));
-    if (det > -EPS_F && det < EPS_F) {ret.hit = false; return ret;}
+    if (fabsf(det) <= EPS_F) return ret;
 
     float f = 1/det;
     Vec3 cross_s_e2 = cross(s, e2);
-    float t = -f*dot(cross_s_e2, e1);
+    float dot_s_e2_e1 = dot(cross_s_e2, e1);
+    if (fabsf(dot_s_e2_e1) <= EPS_F) return ret;
 
+    float t = -f*dot_s_e2_e1;
     if (t>=ray.dist_bounds.y || t<=EPS_F) {
-        ret.hit = false;
         return ret;
     }
 
     float u = -f*dot(cross_s_e2, ray.dir);
-    if (u < 0.0 || u > 1.0) {ret.hit = false; return ret;}
+    if (u < 0.0 || u > 1.0) return ret;
     float v = f*dot(cross_e1_d, s);
-    if (v < 0.0 || u + v > 1.0) {ret.hit = false; return ret;}
+    if (v < 0.0 || u + v > 1.0) return ret;
 
     ray.dist_bounds.y = t;
     ret.distance=t;

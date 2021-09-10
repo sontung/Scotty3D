@@ -30,13 +30,13 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
     Ray ray = camera.generate_ray(xy);
 
 //    Vec3 des;
-//    des.x = 0.495265;
-//    des.y = 0.766083;
-//    des.z = -0.40967;
+//    des.x = -0.22603;
+//    des.y = 0.869541;
+//    des.z = 0.439099;
 
-//    ray.point.x=0.0457429;
-//    ray.point.y=0.30547;
-//    ray.point.z=0.266306;
+//    ray.point.x=-0.499998;
+//    ray.point.y=0;
+//    ray.point.z=-0.265736;
 //    ray.dir=des;
 
 //    Vec3 final_dir = des-ray.point;
@@ -83,8 +83,11 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = hit.depth-1;
         auto [emissive, reflected] = trace(new_ray);
-
-        radiance += scat.attenuation/hit.bsdf.pdf(hit.out_dir, in_dir)*(reflected);
+        if (!hit.bsdf.is_discrete()) {
+            radiance += scat.attenuation/hit.bsdf.pdf(hit.out_dir, in_dir)*(reflected);
+        } else {
+            radiance += scat.attenuation*(reflected);
+        }
     }
     return radiance;
 }
@@ -114,7 +117,11 @@ Spectrum Pathtracer::sample_direct_lighting(const Shading_Info& hit) {
         new_ray.depth = 0;
 //        float cos_theta = dot(hit.world_to_object.rotate(hit.normal).unit(), in_dir);
         auto [emissive, reflected] = trace(new_ray);
-        radiance += scat.attenuation/hit.bsdf.pdf(hit.out_dir, in_dir)*(emissive);
+        if (!hit.bsdf.is_discrete()) {
+            radiance += scat.attenuation/hit.bsdf.pdf(hit.out_dir, in_dir)*(emissive);
+        } else {
+            radiance += scat.attenuation*(emissive);
+        }
     }
 
     // TODO (PathTrace): Task 6
