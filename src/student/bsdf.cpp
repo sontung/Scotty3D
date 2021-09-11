@@ -44,6 +44,10 @@ static Vec3 refract(Vec3 out_dir, float index_of_refraction, bool& was_internal)
     normal.y=1.0;
     normal.z=0.0;
 
+    if (fabsf(index_of_refraction-1.0f) <= EPS_F) {
+        return -out_dir;
+    }
+
     float cos_theta_i = out_dir.y;
 
     float sin2_theta_i = fmaxf(EPS_F, 1.0-cos_theta_i*cos_theta_i);
@@ -137,6 +141,10 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
 
     // Be wary of your eta1/eta2 ratio - are you entering or leaving the surface?
     // What happens upon total internal reflection?
+
+    BSDF_Refract b(transmittance, 1.5f);
+    return b.scatter(out_dir);
+
     float etaA = 1.0f;
     float etaB = index_of_refraction;
     float Fr = compute_fr_dielectric(out_dir.y, etaA, etaB);
@@ -145,22 +153,23 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
     if (RNG::coin_flip(Fr)) {
 //        std::cout<<"reflect\n";
         ret.direction = reflect(out_dir);
-        ret.attenuation = reflectance*Fr/fabsf(ret.direction.y);
+        ret.attenuation = reflectance/fabsf(ret.direction.y);
     } else {
         bool entering = out_dir.y > EPS_F;
         float etaI = entering ? etaA : etaB;
         float etaT = entering ? etaB : etaA;
-        bool internal;
+        bool internal=false;
         Vec3 in_dir = refract(out_dir, etaI / etaT, internal);
+
         if (internal) {
 //            std::cout<<"reflect internal\n";
 //            printf("internal reflect %f\n", Fr);
             ret.direction = reflect(out_dir);
-            ret.attenuation = reflectance*Fr/fabsf(ret.direction.y);
+            ret.attenuation = reflectance/fabsf(ret.direction.y);
             return ret;
         }
         else {
-//            std::cout<<"refract\n";
+//            std::cout<<in_dir<<out_dir<<"\n";
             ret.direction = in_dir;
             ret.attenuation = transmittance*(1-Fr)/fabsf(ret.direction.y);
         }
@@ -176,8 +185,21 @@ Scatter BSDF_Refract::scatter(Vec3 out_dir) const {
     // When debugging BSDF_Glass, it may be useful to compare to a pure-refraction BSDF
 
     Scatter ret;
-    ret.direction = Vec3();
-    ret.attenuation = Spectrum{};
+    float etaA = 1.0f;
+    float etaB = 1.5f;
+//    float Fr = compute_fr_dielectric(out_dir.y, etaA, etaB);
+
+    bool entering = out_dir.y > EPS_F;
+    float etaI = entering ? etaA : etaB;
+    float etaT = entering ? etaB : etaA;
+    bool internal=false;
+    Vec3 in_dir = refract(out_dir, etaI / etaT, internal);
+
+
+    ret.direction = in_dir;
+    ret.attenuation = transmittance;
+
+
     return ret;
 }
 
