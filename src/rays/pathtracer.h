@@ -44,7 +44,8 @@ private:
         const BSDF& bsdf;
         Mat4 world_to_object, object_to_world;
         Vec3 pos, out_dir, normal;
-        size_t depth = 0;;
+        size_t depth = 0;
+        bool vis;
     };
 
     void build_scene(Scene& scene);
@@ -86,6 +87,8 @@ private:
     size_t out_w, out_h, n_samples, max_depth;
     Samplers::Rect sampler_rect;
 
+    ///debug
+    bool logged_ray=false;
 };
 
 } // namespace PT

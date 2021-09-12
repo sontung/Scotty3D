@@ -30,9 +30,9 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
     Ray ray = camera.generate_ray(xy);
 
 //    Vec3 des;
-//    des.x = -0.22603;
-//    des.y = 0.869541;
-//    des.z = 0.439099;
+//    des.x = 0.215;
+//    des.y = 0.2;
+//    des.z = 0.285;
 
 //    ray.point.x=-0.499998;
 //    ray.point.y=0;
@@ -42,10 +42,18 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
 //    Vec3 final_dir = des-ray.point;
 //    ray.dir = final_dir.unit();
 
-
+//    ray.invdir.x=1.0/ray.dir.x;
+//    ray.invdir.y=1.0/ray.dir.y;
+//    ray.invdir.z=1.0/ray.dir.z;
+//    ray.sign[0] = (ray.invdir.x < 0);
+//    ray.sign[1] = (ray.invdir.y < 0);
+//    ray.sign[2] = (ray.invdir.z < 0);
 
     ray.depth = max_depth;
-    if(RNG::coin_flip(0.00005f)) log_ray(ray, 7.0f);
+
+//    if(RNG::coin_flip(0.000005f)) {
+//        log_ray(ray, 7.0f);
+//    }
 
     // Pathtracer::trace() returns the incoming light split into emissive and reflected components.
     auto [emissive, reflected] = trace(ray);
@@ -82,6 +90,11 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = hit.depth-1;
+
+
+//        if(RNG::coin_flip(0.00005f)) log_ray(new_ray, 0.2f);
+
+
         auto [emissive, reflected] = trace(new_ray);
         if (!hit.bsdf.is_discrete()) {
             radiance += scat.attenuation/hit.bsdf.pdf(hit.out_dir, in_dir)*(reflected);
@@ -173,7 +186,6 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
     if(!bsdf.is_sided() && dot(result.normal, ray.dir) > 0.0f) {
         result.normal = -result.normal;
     }
-//    if(RNG::coin_flip(0.0000005f)) log_ray(ray, 2.0f);
 
     // If the BSDF is emissive, stop tracing and return the emitted light
     Spectrum emissive = bsdf.emissive();
@@ -194,7 +206,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
     Vec3 out_dir = world_to_object.rotate(ray.point - result.position).unit();
 
     Shading_Info hit = {bsdf,    world_to_object, object_to_world, result.position,
-                        out_dir, result.normal,   ray.depth};
+                        out_dir, result.normal,   ray.depth, ray.vis};
 
     // Sample and return light reflected through the intersection
     return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};

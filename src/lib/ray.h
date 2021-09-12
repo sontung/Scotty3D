@@ -53,10 +53,10 @@ struct Ray {
     /// The minimum and maximum distance at which this ray can encounter collisions
     /// note that this field is mutable, meaning it can be changed on const Rays
     mutable Vec2 dist_bounds = Vec2(0.0f, std::numeric_limits<float>::infinity());
-
+    mutable bool vis=false;
     /// some properties for box intersection
-    Vec3 invdir;
-    int sign[3];
+    mutable Vec3 invdir;
+    mutable int sign[3];
 };
 
 inline std::ostream& operator<<(std::ostream& out, Ray r) {

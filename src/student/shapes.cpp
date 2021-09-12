@@ -28,67 +28,38 @@ Trace Sphere::hit(const Ray& ray) const {
     Trace ret;
     ret.origin = ray.point;
 
-    Vec3 l = -ray.point;
-    float s = dot(l, ray.dir);
-    float l2 = dot(l, l);
-    float r2 = radius*radius;
-    if (s<0.0 && l2>r2) return ret;
-    float m2 = l2-s*s;
-    if (m2>r2) return ret;
-    float q = sqrtf(r2-m2);
-    float t;
-    if (l2>r2) {
-        t=s-q;
-        if (t >= ray.dist_bounds.y || t <= EPS_F) {
-            return ret;
-        }
+    float od = dot(ray.point, ray.dir);
+    float od_sq = od*od;
+    float o_norm_sq = ray.point.norm_squared();
+    float num = od_sq-o_norm_sq+radius*radius;
+
+
+    if (num < 0) {
+        ret.hit = false;
+        return ret;
     }
-    else if (fabsf(l2-r2) <= EPS_F) return ret;  // make sure to not count as a hit when ray origin is on this sphere
-    else {
-        t=s+q;
-        if (t >= ray.dist_bounds.y || t <= EPS_F) {
-            return ret;
-        }
+
+    float num_sq = sqrt(num);
+    float t1 = -od-num_sq;
+    if (t1 >= ray.dist_bounds.x && t1 <= ray.dist_bounds.y) {
+        ray.dist_bounds.y = t1;
+        ret.distance = t1;
+        ret.position = ray.point+t1*ray.dir;
+        ret.hit = true;
+        ret.normal = ret.position.unit();
+        return ret;
     }
-    ray.dist_bounds.y = t;
-    ret.distance = t;
-    ret.position = ray.point+t*ray.dir;
-    ret.hit = true;
-    ret.normal = ret.position.unit();
+    float t2 = -od+num_sq;
+    if (t2 >= ray.dist_bounds.x && t2 <= ray.dist_bounds.y) {
+        ray.dist_bounds.y = t2;
+        ret.distance = t2;
+        ret.position = ray.point+t2*ray.dir;
+        ret.hit = true;
+        ret.normal = ret.position.unit();
+        return ret;
+    }
+
     return ret;
-
-//    float od = dot(ray.point, ray.dir);
-//    float od_sq = od*od;
-//    float o_norm_sq = ray.point.norm_squared();
-//    float num = od_sq-o_norm_sq+radius*radius;
-
-
-//    if (num < 0) {
-//        ret.hit = false;
-//        return ret;
-//    }
-
-//    float num_sq = sqrt(num);
-//    float t1 = -od-num_sq;
-//    if (t1 >= ray.dist_bounds.x && t1 <= ray.dist_bounds.y) {
-//        ray.dist_bounds.y = t1;
-//        ret.distance = t1;
-//        ret.position = ray.point+t1*ray.dir;
-//        ret.hit = true;
-//        ret.normal = ret.position.unit();
-//        return ret;
-//    }
-//    float t2 = -od+num_sq;
-//    if (t2 >= ray.dist_bounds.x && t2 <= ray.dist_bounds.y) {
-//        ray.dist_bounds.y = t2;
-//        ret.distance = t2;
-//        ret.position = ray.point+t2*ray.dir;
-//        ret.hit = true;
-//        ret.normal = ret.position.unit();
-//        return ret;
-//    }
-
-//    return ret;
 }
 
 } // namespace PT

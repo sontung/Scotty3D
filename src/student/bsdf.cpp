@@ -10,19 +10,11 @@ static Vec3 reflect(Vec3 dir) {
 
     // TODO (PathTracer): Task 5
     // Return reflection of dir about the surface normal (0,1,0).
-    Vec3 normal;
-    normal.x=0.0;
-    normal.y=1.0;
-    normal.z=0.0;
-    float adot = dot(dir, normal);
-
     Vec3 res;
     res.x=-dir.x;
     res.y=dir.y;
     res.z=-dir.z;
     return res;
-
-    return -dir+2*adot*normal;
 }
 
 static Vec3 refract(Vec3 out_dir, float index_of_refraction, bool& was_internal) {
@@ -44,15 +36,20 @@ static Vec3 refract(Vec3 out_dir, float index_of_refraction, bool& was_internal)
     normal.y=1.0;
     normal.z=0.0;
 
+    if (out_dir.y < 0.0) normal.y=-1.0;
+
     if (fabsf(index_of_refraction-1.0f) <= EPS_F) {
         return -out_dir;
     }
 
-    float cos_theta_i = out_dir.y;
-
-    float sin2_theta_i = fmaxf(EPS_F, 1.0-cos_theta_i*cos_theta_i);
+    float cos_theta_i = dot(normal, out_dir);
+    if (cos_theta_i*cos_theta_i >= 1.0) {
+        was_internal = true;
+        return res;
+    }
+    float sin2_theta_i = 1.0-cos_theta_i*cos_theta_i;
     float sin2_theta_t = index_of_refraction*index_of_refraction*sin2_theta_i;
-    if (sin2_theta_t >= 1) {
+    if (sin2_theta_t >= 1.0f) {
         was_internal = true;
         return res;
     }
@@ -142,18 +139,14 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
     // Be wary of your eta1/eta2 ratio - are you entering or leaving the surface?
     // What happens upon total internal reflection?
 
-    BSDF_Refract b(transmittance, 1.5f);
-    return b.scatter(out_dir);
-
     float etaA = 1.0f;
     float etaB = index_of_refraction;
     float Fr = compute_fr_dielectric(out_dir.y, etaA, etaB);
     Scatter ret;
 
     if (RNG::coin_flip(Fr)) {
-//        std::cout<<"reflect\n";
         ret.direction = reflect(out_dir);
-        ret.attenuation = reflectance/fabsf(ret.direction.y);
+        ret.attenuation = reflectance*Fr/fabsf(out_dir.y);
     } else {
         bool entering = out_dir.y > EPS_F;
         float etaI = entering ? etaA : etaB;
@@ -162,16 +155,16 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
         Vec3 in_dir = refract(out_dir, etaI / etaT, internal);
 
         if (internal) {
-//            std::cout<<"reflect internal\n";
-//            printf("internal reflect %f\n", Fr);
+            printf("internal\n");
             ret.direction = reflect(out_dir);
-            ret.attenuation = reflectance/fabsf(ret.direction.y);
+            ret.attenuation = reflectance*Fr/fabsf(out_dir.y);
             return ret;
         }
         else {
-//            std::cout<<in_dir<<out_dir<<"\n";
+//            ret.direction = reflect(out_dir);
+//            ret.attenuation = reflectance*Fr/fabsf(out_dir.y);
             ret.direction = in_dir;
-            ret.attenuation = transmittance*(1-Fr)/fabsf(ret.direction.y);
+            ret.attenuation = transmittance*(1-Fr)/fabsf(out_dir.y);
         }
     }
 
@@ -194,6 +187,10 @@ Scatter BSDF_Refract::scatter(Vec3 out_dir) const {
     float etaT = entering ? etaB : etaA;
     bool internal=false;
     Vec3 in_dir = refract(out_dir, etaI / etaT, internal);
+
+    if (internal) {
+        return ret;
+    }
 
 
     ret.direction = in_dir;
