@@ -45,7 +45,7 @@ private:
         Mat4 world_to_object, object_to_world;
         Vec3 pos, out_dir, normal;
         size_t depth = 0;
-        bool vis;
+        const Ray& ray;
     };
 
     void build_scene(Scene& scene);

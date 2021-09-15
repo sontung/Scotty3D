@@ -27,38 +27,38 @@ Trace Sphere::hit(const Ray& ray) const {
     // return that one!
     Trace ret;
     ret.origin = ray.point;
+    ret.hit = false;
 
-    float od = dot(ray.point, ray.dir);
-    float od_sq = od*od;
-    float o_norm_sq = ray.point.norm_squared();
-    float num = od_sq-o_norm_sq+radius*radius;
+    float a = ray.dir.norm_squared();
+    float b = 2*dot(ray.point, ray.dir);
+    float c = ray.point.norm_squared() - radius*radius;
 
+    float discrim = b*b-4*a*c;
+    if (discrim < EPS_F) return ret;
+    float root_discrim = sqrtf(discrim);
+    float q;
+    if (b < EPS_F) q = -.5 * (b - root_discrim);
+    else q = -.5 * (b + root_discrim);
+    float t0 = q/a;
+    float t1 = c/q;
+    if (t0 > t1) std::swap(t0, t1);
+//    assert(t1 >= t0);
 
-    if (num < 0) {
-        ret.hit = false;
+    if (t0 > ray.dist_bounds.y || t1 <= ray.dist_bounds.x) {
         return ret;
     }
-
-    float num_sq = sqrt(num);
-    float t1 = -od-num_sq;
-    if (t1 >= ray.dist_bounds.x && t1 <= ray.dist_bounds.y) {
-        ray.dist_bounds.y = t1;
-        ret.distance = t1;
-        ret.position = ray.point+t1*ray.dir;
-        ret.hit = true;
-        ret.normal = ret.position.unit();
-        return ret;
-    }
-    float t2 = -od+num_sq;
-    if (t2 >= ray.dist_bounds.x && t2 <= ray.dist_bounds.y) {
-        ray.dist_bounds.y = t2;
-        ret.distance = t2;
-        ret.position = ray.point+t2*ray.dir;
-        ret.hit = true;
-        ret.normal = ret.position.unit();
-        return ret;
+    float tShapeHit = t0;
+    if (tShapeHit <= EPS_F) {
+        tShapeHit = t1;
+        if (tShapeHit > ray.dist_bounds.y)
+            return ret;
     }
 
+    ray.dist_bounds.y = tShapeHit;
+    ret.distance = tShapeHit;
+    ret.position = ray.point+tShapeHit*ray.dir;
+    ret.hit = true;
+    ret.normal = ret.position.unit();
     return ret;
 }
 

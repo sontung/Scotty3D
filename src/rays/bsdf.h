@@ -12,6 +12,7 @@
 namespace PT {
 
 struct Scatter {
+    bool reflected=false;
 
     Spectrum attenuation;
     Vec3 direction;

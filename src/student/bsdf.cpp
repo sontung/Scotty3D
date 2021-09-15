@@ -43,11 +43,7 @@ static Vec3 refract(Vec3 out_dir, float index_of_refraction, bool& was_internal)
     }
 
     float cos_theta_i = dot(normal, out_dir);
-    if (cos_theta_i*cos_theta_i >= 1.0) {
-        was_internal = true;
-        return res;
-    }
-    float sin2_theta_i = 1.0-cos_theta_i*cos_theta_i;
+    float sin2_theta_i = fmaxf(EPS_F, 1.0-cos_theta_i*cos_theta_i);
     float sin2_theta_t = index_of_refraction*index_of_refraction*sin2_theta_i;
     if (sin2_theta_t >= 1.0f) {
         was_internal = true;
@@ -74,16 +70,26 @@ static float compute_fr_dielectric(float cosThetaI, float etaI, float etaT) {
         std::swap(etaI, etaT);
         cosThetaI = fabsf(cosThetaI);
     }
-    float sin2_theta_i = fmaxf(EPS_F, 1.0-cosThetaI*cosThetaI);
+    float sin2_theta_i = fmaxf(0.0, 1.0-cosThetaI*cosThetaI);
     float sin_theta_i = sqrtf(sin2_theta_i);
     float sin_theta_t = etaI / etaT * sin_theta_i;
     if (sin_theta_t >= 1) {
         return 1.0;
     }
-    float cos_theta_t = sqrtf(fmaxf(EPS_F, 1.0-sin_theta_t*sin_theta_t));
+    float cos_theta_t = sqrtf(fmaxf(0.0, 1.0-sin_theta_t*sin_theta_t));
     float Rparl = ((etaT * cosThetaI) - (etaI * cos_theta_t)) / ((etaT * cosThetaI) + (etaI * cos_theta_t));
     float Rperp = ((etaI * cosThetaI) - (etaT * cos_theta_t)) / ((etaI * cosThetaI) + (etaT * cos_theta_t));
     return (Rparl * Rparl + Rperp * Rperp) / 2;
+}
+
+float compute_fr_dielectric_schlick(float cosThetaI, float etaI, float etaT) {
+//    cosThetaI = Clamp(cosThetaI, -1.0, 1.0);
+
+    cosThetaI = fabsf(cosThetaI);
+
+    float r0 = (etaI-etaT)/(etaI+etaT);
+    float r02 = r0*r0;
+    return r02+(1-r02)*powf(1-cosThetaI, 5);
 }
 
 Scatter BSDF_Lambertian::scatter(Vec3 out_dir) const {
@@ -142,11 +148,18 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
     float etaA = 1.0f;
     float etaB = index_of_refraction;
     float Fr = compute_fr_dielectric(out_dir.y, etaA, etaB);
+
     Scatter ret;
+    if (Fr >= 1.0f) {
+        ret.direction = reflect(out_dir);
+        ret.attenuation = reflectance;
+        return ret;
+    }
 
     if (RNG::coin_flip(Fr)) {
         ret.direction = reflect(out_dir);
-        ret.attenuation = reflectance*Fr/fabsf(out_dir.y);
+        ret.attenuation = reflectance;
+        ret.reflected = true;
     } else {
         bool entering = out_dir.y > EPS_F;
         float etaI = entering ? etaA : etaB;
@@ -155,16 +168,11 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
         Vec3 in_dir = refract(out_dir, etaI / etaT, internal);
 
         if (internal) {
-            printf("internal\n");
-            ret.direction = reflect(out_dir);
-            ret.attenuation = reflectance*Fr/fabsf(out_dir.y);
             return ret;
         }
         else {
-//            ret.direction = reflect(out_dir);
-//            ret.attenuation = reflectance*Fr/fabsf(out_dir.y);
             ret.direction = in_dir;
-            ret.attenuation = transmittance*(1-Fr)/fabsf(out_dir.y);
+            ret.attenuation = transmittance;
         }
     }
 
@@ -180,7 +188,6 @@ Scatter BSDF_Refract::scatter(Vec3 out_dir) const {
     Scatter ret;
     float etaA = 1.0f;
     float etaB = 1.5f;
-//    float Fr = compute_fr_dielectric(out_dir.y, etaA, etaB);
 
     bool entering = out_dir.y > EPS_F;
     float etaI = entering ? etaA : etaB;

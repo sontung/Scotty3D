@@ -54,7 +54,7 @@ Trace Triangle::hit(const Ray& ray) const {
     float det = (dot(cross_e1_d, e2));
     if (fabsf(det) <= EPS_F) return ret;
 
-    float f = 1/det;
+    float f = 1.0/det;
     Vec3 cross_s_e2 = cross(s, e2);
     float dot_s_e2_e1 = dot(cross_s_e2, e1);
     if (fabsf(dot_s_e2_e1) <= EPS_F) return ret;
@@ -65,9 +65,9 @@ Trace Triangle::hit(const Ray& ray) const {
     }
 
     float u = -f*dot(cross_s_e2, ray.dir);
-    if (u < 0.0 || u > 1.0) return ret;
+    if (u < EPS_F || u > 1.0) return ret;
     float v = f*dot(cross_e1_d, s);
-    if (v < 0.0 || u + v > 1.0) return ret;
+    if (v < EPS_F || u + v > 1.0) return ret;
 
     ray.dist_bounds.y = t;
     ret.distance=t;

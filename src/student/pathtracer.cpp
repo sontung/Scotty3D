@@ -92,7 +92,10 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
         new_ray.depth = hit.depth-1;
 
 
-//        if(RNG::coin_flip(0.00005f)) log_ray(new_ray, 0.2f);
+        if(RNG::coin_flip(0.00005f) && scat.reflected) {log_ray(new_ray, 0.2f);
+            Spectrum color;
+            color.r=1.0;
+            log_ray(hit.ray, 5.0f, color);}
 
 
         auto [emissive, reflected] = trace(new_ray);
@@ -206,7 +209,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
     Vec3 out_dir = world_to_object.rotate(ray.point - result.position).unit();
 
     Shading_Info hit = {bsdf,    world_to_object, object_to_world, result.position,
-                        out_dir, result.normal,   ray.depth, ray.vis};
+                        out_dir, result.normal,   ray.depth, ray};
 
     // Sample and return light reflected through the intersection
     return {{}, sample_direct_lighting(hit) + sample_indirect_lighting(hit)};

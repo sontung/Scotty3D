@@ -308,6 +308,7 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 //    ray.sign[1] = (ray.invdir.y < 0);
 //    ray.sign[2] = (ray.invdir.z < 0);
     hit_helper(ray, ret, nodes[root_idx]);
+    if (ret.hit && ret.distance <= EPS_F) printf("%f\n", ret.distance);
 
 
 //    if (ret.hit) assert(ret.distance > EPS_F);
