@@ -19,6 +19,7 @@ class Triangle {
 public:
     BBox bbox() const;
     Trace hit(const Ray& ray) const;
+    bool hitP(const Ray& ray) const;
 
     size_t visualize(GL::Lines&, GL::Lines&, size_t, const Mat4&) const {
         return size_t(0);
@@ -49,6 +50,7 @@ public:
 
     BBox bbox() const;
     Trace hit(const Ray& ray) const;
+    bool hitP(const Ray& ray) const;
 
     size_t visualize(GL::Lines& lines, GL::Lines& active, size_t level, const Mat4& trans) const;
 
@@ -59,6 +61,7 @@ public:
 
 private:
     bool use_bvh = true;
+    bool flat_bbox = false;
     std::vector<Tri_Mesh_Vert> verts;
     BVH<Triangle> triangle_bvh;
     List<Triangle> triangle_list;

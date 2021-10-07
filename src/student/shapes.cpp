@@ -42,18 +42,17 @@ Trace Sphere::hit(const Ray& ray) const {
     float t0 = q/a;
     float t1 = c/q;
     if (t0 > t1) std::swap(t0, t1);
-//    assert(t1 >= t0);
-
-    if (t0 > ray.dist_bounds.y || t1 <= ray.dist_bounds.x) {
+    if (t0 > ray.dist_bounds.y || t1 < ray.dist_bounds.x) {
         return ret;
     }
+    ret.skip_able = false;
     float tShapeHit = t0;
-    if (tShapeHit <= EPS_F) {
+    if (tShapeHit < EPS_F) {
         tShapeHit = t1;
         if (tShapeHit > ray.dist_bounds.y)
             return ret;
     }
-
+    assert(tShapeHit>EPS_F);
     ray.dist_bounds.y = tShapeHit;
     ret.distance = tShapeHit;
     ret.position = ray.point+tShapeHit*ray.dir;

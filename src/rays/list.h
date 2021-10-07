@@ -31,6 +31,14 @@ public:
         return ret;
     }
 
+    bool hitP(const Ray& ray) const {
+        for(const auto& p : prims) {
+            bool test = p.hitP(ray);
+            if (test) return true;
+        }
+        return false;
+    }
+
     void append(Primitive&& prim) {
         prims.push_back(std::move(prim));
     }
@@ -60,6 +68,7 @@ public:
     bool empty() const {
         return prims.empty();
     }
+    bool flat_bbox = false;
 
 private:
     std::vector<Primitive> prims;

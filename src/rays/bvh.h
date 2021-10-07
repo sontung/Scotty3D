@@ -35,7 +35,10 @@ private:
         BBox bbox;
         size_t start, size, l, r;
         size_t id = 0;
+        size_t parent_id = 0;
         size_t level=0;
+        size_t axis = 0;
+        bool bad_box = false;
         std::vector<size_t> prims_idx_vec;
         std::vector<size_t> direct_access;  // direct access to flat bbox
 
@@ -53,6 +56,7 @@ private:
 
     class BestBucketSplit {
         bool unset=true;
+        size_t axis = 0;
         std::vector<Bucket> bucket_array;
         size_t best_split;
         float best_cost;
@@ -64,6 +68,8 @@ private:
     void node_bbox_enclosing(size_t node_idx);
     void hit_helper(const Ray& ray, Trace& closest_hit,
                     const Node& current_node) const;
+    void hit_helper(const Ray& ray, Trace& closest_hit,
+                    const Node& current_node, SimpleTrace& hit_bbox) const;
     BBox enclose_box(size_t start, size_t end);
     void build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims);
     void sah_split(size_t parent_index, size_t dim, size_t nb_buckets,
@@ -77,6 +83,9 @@ private:
     BestBucketSplit best_bucket_split;
     float total_split_cost = 0.0;
     std::vector<Vec3> primitive_centroids;
+    std::vector<size_t> bvh_compatible_prims;
+    std::vector<size_t> bvh_incompatible_prims;
+
     std::vector<Node> nodes;
     mutable std::vector<size_t> node_visit_statuses;
     std::vector<Primitive> primitives;

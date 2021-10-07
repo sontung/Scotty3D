@@ -6,7 +6,8 @@
 namespace PT {
 
 struct Trace {
-
+    size_t prim_id=-1;
+    bool skip_able = true;
     bool hit = false;
     float distance = std::numeric_limits<float>::max();
     Vec3 position, normal, origin;
