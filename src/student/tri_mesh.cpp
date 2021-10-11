@@ -33,6 +33,25 @@ BBox Triangle::bbox() const {
     return box;
 }
 
+bool Triangle::hitP(const Ray& ray) const {
+
+    // Vertices of triangle - has postion and surface normal
+    Tri_Mesh_Vert v_0 = vertex_list[v0];
+    Tri_Mesh_Vert v_1 = vertex_list[v1];
+    Tri_Mesh_Vert v_2 = vertex_list[v2];
+    (void)v_0;
+    (void)v_1;
+    (void)v_2;
+
+    Vec3 s = ray.point-v_0.position;
+    Vec3 cross_e1_d = cross(e1, ray.dir);
+
+    float det = (dot(cross_e1_d, e2));
+    if (det < EPS_F && det > -EPS_F) return false;
+
+    return true;
+}
+
 Trace Triangle::hit(const Ray& ray) const {
 
     // Vertices of triangle - has postion and surface normal
@@ -52,15 +71,14 @@ Trace Triangle::hit(const Ray& ray) const {
     Vec3 cross_e1_d = cross(e1, ray.dir);
 
     float det = (dot(cross_e1_d, e2));
-    if (fabsf(det) <= EPS_F) return ret;
+    if (det < EPS_F && det > -EPS_F) return ret;
 
     float f = 1.0/det;
     Vec3 cross_s_e2 = cross(s, e2);
     float dot_s_e2_e1 = dot(cross_s_e2, e1);
-    if (fabsf(dot_s_e2_e1) <= EPS_F) return ret;
 
     float t = -f*dot_s_e2_e1;
-    if (t>=ray.dist_bounds.y || t<=EPS_F) {
+    if (t>ray.dist_bounds.y || t<EPS_F) {
         return ret;
     }
 
@@ -138,9 +156,16 @@ void Tri_Mesh::build(const GL::Mesh& mesh, bool bvh) {
 
     if(use_bvh) {
         triangle_bvh.build(std::move(tris), 4);
+        std::vector<Triangle> tris;
+        for(size_t i = 0; i < idxs.size(); i += 3) {
+            tris.push_back(Triangle(verts.data(), idxs[i], idxs[i + 1], idxs[i + 2]));
+        }
+        triangle_list = List<Triangle>(std::move(tris));
+
     } else {
         triangle_list = List<Triangle>(std::move(tris));
     }
+
 }
 
 Tri_Mesh::Tri_Mesh(const GL::Mesh& mesh, bool use_bvh) {
@@ -157,13 +182,21 @@ Tri_Mesh Tri_Mesh::copy() const {
 }
 
 BBox Tri_Mesh::bbox() const {
-    if(use_bvh) return triangle_bvh.bbox();
+    if(use_bvh) {
+        return triangle_bvh.bbox();
+    }
     return triangle_list.bbox();
 }
 
 Trace Tri_Mesh::hit(const Ray& ray) const {
-    if(use_bvh) return triangle_bvh.hit(ray);
+    if(use_bvh) {
+        return triangle_bvh.hit(ray);
+    }
     return triangle_list.hit(ray);
+}
+
+bool Tri_Mesh::hitP(const Ray& ray) const {
+    return triangle_list.hitP(ray);
 }
 
 size_t Tri_Mesh::visualize(GL::Lines& lines, GL::Lines& active, size_t level,

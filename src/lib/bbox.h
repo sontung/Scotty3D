@@ -15,6 +15,8 @@
 struct SimpleTrace {
     bool hit = false;
     float distance = std::numeric_limits<float>::max();
+    float tmin=-1;
+    float tmax=-1;
 };
 
 struct BBox {
@@ -34,6 +36,8 @@ struct BBox {
     void reset() {
         min = Vec3(FLT_MAX);
         max = Vec3(-FLT_MAX);
+        bounds[0] = min;
+        bounds[1] = max;
     }
 
     /// Expand bounding box to include point
@@ -59,6 +63,9 @@ struct BBox {
             }
             normal = cross(pointC-min, pointC-max);
         }
+        bounds[0] = min;
+        bounds[1] = max;
+
     }
     void enclose(BBox box) {
         min = hmin(min, box.min);
@@ -82,6 +89,8 @@ struct BBox {
             }
             normal = cross(pointC-min, pointC-max);
         }
+        bounds[0] = min;
+        bounds[1] = max;
     }
 
     /// Get center point of box
@@ -195,6 +204,7 @@ struct BBox {
     }
 
     Vec3 min, max;
+    Vec3 bounds[2] = {min, max};
 };
 
 inline std::ostream& operator<<(std::ostream& out, BBox b) {

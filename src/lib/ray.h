@@ -54,6 +54,7 @@ struct Ray {
     /// note that this field is mutable, meaning it can be changed on const Rays
     mutable Vec2 dist_bounds = Vec2(0.0f, std::numeric_limits<float>::infinity());
     mutable bool vis=false;
+    mutable size_t prev_prim_hit = -1;
     /// some properties for box intersection
     mutable Vec3 invdir;
     mutable int sign[3];
