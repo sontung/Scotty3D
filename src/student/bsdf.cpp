@@ -82,15 +82,6 @@ static float compute_fr_dielectric(float cosThetaI, float etaI, float etaT) {
     return (Rparl * Rparl + Rperp * Rperp) / 2;
 }
 
-float compute_fr_dielectric_schlick(float cosThetaI, float etaI, float etaT) {
-//    cosThetaI = Clamp(cosThetaI, -1.0, 1.0);
-
-    cosThetaI = fabsf(cosThetaI);
-
-    float r0 = (etaI-etaT)/(etaI+etaT);
-    float r02 = r0*r0;
-    return r02+(1-r02)*powf(1-cosThetaI, 5);
-}
 
 Scatter BSDF_Lambertian::scatter(Vec3 out_dir) const {
 
@@ -158,8 +149,7 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
 
     if (RNG::coin_flip(Fr)) {
         ret.direction = reflect(out_dir);
-        ret.attenuation = reflectance;
-        ret.reflected = true;
+        ret.attenuation = reflectance*Fr/fabsf(ret.direction.y); //*Fr/fabsf(out_dir.y);
     } else {
         bool entering = out_dir.y > EPS_F;
         float etaI = entering ? etaA : etaB;
@@ -172,7 +162,7 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
         }
         else {
             ret.direction = in_dir;
-            ret.attenuation = transmittance;
+            ret.attenuation = transmittance*(1-Fr)/fabsf(ret.direction.y);
         }
     }
 
