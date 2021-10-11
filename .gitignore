@@ -1,4 +1,5 @@
 *build*/
+pathtracer.*
 .vs/
 x64/
 Debug/
