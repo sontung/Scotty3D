@@ -55,11 +55,18 @@ public:
     Trace hit(Ray ray) const {
         if(has_trans) ray.transform(itrans);
         Trace ret = std::visit([&ray](const auto& o) { return o.hit(ray); }, underlying);
-        if(ret.hit) {
+        if(ret.hit && !ret.special) {
             if(material != -1) ret.material = material;
             if(has_trans) ret.transform(trans, itrans.T());
         }
         return ret;
+    }
+
+    void transform_hit_results(Trace &ret) const {
+        if(ret.hit && ret.special) {
+            if(material != -1) ret.material = material;
+            if(has_trans) ret.transform(trans, itrans.T());
+        }
     }
 
     size_t visualize(GL::Lines& lines, GL::Lines& active, size_t level, Mat4 vtrans) const {

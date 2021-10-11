@@ -33,6 +33,8 @@ BBox Triangle::bbox() const {
     return box;
 }
 
+void Triangle::transform_hit_results(Trace &ret) const {return;}
+
 bool Triangle::hitP(const Ray& ray) const {
 
     // Vertices of triangle - has postion and surface normal
@@ -56,17 +58,10 @@ Trace Triangle::hit(const Ray& ray) const {
 
     // Vertices of triangle - has postion and surface normal
     Tri_Mesh_Vert v_0 = vertex_list[v0];
-    Tri_Mesh_Vert v_1 = vertex_list[v1];
-    Tri_Mesh_Vert v_2 = vertex_list[v2];
     (void)v_0;
-    (void)v_1;
-    (void)v_2;
 
     Trace ret;
-    ret.origin = ray.point;
 
-    // TODO (PathTracer): Task 2
-    // Intersect this ray with a triangle defined by the three above points.
     Vec3 s = ray.point-v_0.position;
     Vec3 cross_e1_d = cross(e1, ray.dir);
 
@@ -87,12 +82,31 @@ Trace Triangle::hit(const Ray& ray) const {
     float v = f*dot(cross_e1_d, s);
     if (v < EPS_F || u + v > 1.0) return ret;
 
+    Tri_Mesh_Vert v_1 = vertex_list[v1];
+    Tri_Mesh_Vert v_2 = vertex_list[v2];
+    (void)v_1;
+    (void)v_2;
+
     ray.dist_bounds.y = t;
+    ret.origin = ray.point;
     ret.distance=t;
     ret.position=ray.point+t*ray.dir;
     ret.hit=true;
     ret.normal=(1.0-u-v)*v_0.normal+u*v_1.normal+v*v_2.normal;
 
+    return ret;
+}
+
+Trace Triangle::hit_normal_only(const Ray& ray) const {
+    Tri_Mesh_Vert v_0 = vertex_list[v0];
+    Tri_Mesh_Vert v_1 = vertex_list[v1];
+    Tri_Mesh_Vert v_2 = vertex_list[v2];
+    (void)v_0;
+    (void)v_1;
+    (void)v_2;
+    Trace ret;
+    ret.special = true;
+    ret.normal=(v_0.normal+v_1.normal+v_2.normal)/3.0f;
     return ret;
 }
 
@@ -153,15 +167,25 @@ void Tri_Mesh::build(const GL::Mesh& mesh, bool bvh) {
     for(size_t i = 0; i < idxs.size(); i += 3) {
         tris.push_back(Triangle(verts.data(), idxs[i], idxs[i + 1], idxs[i + 2]));
     }
-
     if(use_bvh) {
         triangle_bvh.build(std::move(tris), 4);
-        std::vector<Triangle> tris;
-        for(size_t i = 0; i < idxs.size(); i += 3) {
-            tris.push_back(Triangle(verts.data(), idxs[i], idxs[i + 1], idxs[i + 2]));
-        }
-        triangle_list = List<Triangle>(std::move(tris));
+        if (bbox().empty_or_flat()) {
+            for(const auto& v : mesh.verts()) {
+                if (!set_norm_when_flat) {
+                    set_norm_when_flat = true;
+                    norm_when_flat = v.norm;
+                } else {
+                    Vec3 diff = norm_when_flat - v.norm;
+                    assert(diff.norm()<EPS_F);
+                }
+            }
 
+            std::vector<Triangle> tris;
+            for(size_t i = 0; i < idxs.size(); i += 3) {
+                tris.push_back(Triangle(verts.data(), idxs[i], idxs[i + 1], idxs[i + 2]));
+            }
+            triangle_list = List<Triangle>(std::move(tris));
+        }
     } else {
         triangle_list = List<Triangle>(std::move(tris));
     }
@@ -189,8 +213,12 @@ BBox Tri_Mesh::bbox() const {
 }
 
 Trace Tri_Mesh::hit(const Ray& ray) const {
+    if (bbox().empty_or_flat()) {
+        return triangle_list.hit_normal_only(ray);
+    }
     if(use_bvh) {
-        return triangle_bvh.hit(ray);
+        Trace ret = triangle_bvh.hit(ray);
+        return ret;
     }
     return triangle_list.hit(ray);
 }

@@ -9,6 +9,7 @@ struct Trace {
     size_t prim_id=-1;
     bool skip_able = true;
     bool hit = false;
+    bool special = false;
     float distance = std::numeric_limits<float>::max();
     Vec3 position, normal, origin;
     int material = 0;

@@ -19,6 +19,9 @@ class Triangle {
 public:
     BBox bbox() const;
     Trace hit(const Ray& ray) const;
+    void transform_hit_results(Trace &ret) const;
+    Trace hit_normal_only(const Ray& ray) const;
+
     bool hitP(const Ray& ray) const;
 
     size_t visualize(GL::Lines&, GL::Lines&, size_t, const Mat4&) const {
@@ -40,6 +43,7 @@ class Tri_Mesh {
 public:
     Tri_Mesh() = default;
     Tri_Mesh(const GL::Mesh& mesh, bool use_bvh = true);
+    void transform_hit_results(Trace &ret) const;
 
     Tri_Mesh(Tri_Mesh&& src) = default;
     Tri_Mesh& operator=(Tri_Mesh&& src) = default;
@@ -62,6 +66,8 @@ public:
 private:
     bool use_bvh = true;
     bool flat_bbox = false;
+    mutable bool set_norm_when_flat = false;
+    mutable Vec3 norm_when_flat;
     std::vector<Tri_Mesh_Vert> verts;
     BVH<Triangle> triangle_bvh;
     List<Triangle> triangle_list;

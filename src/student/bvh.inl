@@ -289,12 +289,25 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
         if (!hit_bbox.hit) return;
         size_t start = current_node.start;
         size_t size = current_node.size;
+        if (current_node.bbox.empty_or_flat()) {
+            Trace ret = primitives[start].hit(ray);
+            ray.dist_bounds.y = hit_bbox.distance;
+            ret.origin = ray.point;
+            ret.distance=hit_bbox.distance;
+            ret.position=ray.point+ret.distance*ray.dir;
+            ret.hit=true;
+            primitives[start].transform_hit_results(ret);
+            closest_hit = Trace::min(closest_hit, ret);
+            return;
+        }
         for (size_t i=start; i<start+size; i++) {
             if (i == ray.prev_prim_hit) {
                 continue;
             }
             Trace hit = primitives[i].hit(ray);
-            if (hit.hit && hit.skip_able) hit.prim_id = i;
+            if (hit.hit && hit.skip_able) {
+                hit.prim_id = i;
+            }
             closest_hit = Trace::min(closest_hit, hit);
         }
     } else {

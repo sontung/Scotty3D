@@ -139,7 +139,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // TODO (PathTracer): Task 4
     // You will want to change the default normal_colors in debug.h, or delete this early out.
-//    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
+    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
 
     // If the ray has reached maximum depth, stop tracing
     if(ray.depth == 0) return {};

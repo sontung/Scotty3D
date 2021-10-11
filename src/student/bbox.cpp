@@ -57,6 +57,7 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
 
     if (tMin < ray.dist_bounds.y && tMax > ray.dist_bounds.x) {
         res.hit = true;
+        res.distance = tMin;
     }
     return res;
 }
