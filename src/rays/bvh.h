@@ -68,8 +68,8 @@ private:
     void node_bbox_enclosing(size_t node_idx);
     void hit_helper(const Ray& ray, Trace& closest_hit,
                     const Node& current_node) const;
-    void hit_helper(const Ray& ray, Trace& closest_hit,
-                    const Node& current_node, SimpleTrace& hit_bbox) const;
+    void hit_helper_fast(const Ray& ray, Trace& closest_hit,
+                    const Node& current_node) const;
     BBox enclose_box(size_t start, size_t end);
     void build_helper_sah(size_t max_leaf_size, size_t parent_index, std::vector<size_t>& ordered_prims);
     void sah_split(size_t parent_index, size_t dim, size_t nb_buckets,

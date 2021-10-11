@@ -3,14 +3,24 @@
 #include "debug.h"
 #include <iostream>
 
-bool BBox::hit(const Ray& ray, Vec2& times) const {
 
-    // TODO (PathTracer):
-    // Implement ray - bounding box intersection test
-    // If the ray intersected the bounding box within the range given by
-    // [times.x,times.y], update times with the new intersection times.
+bool BBox::hit(const Ray& r) const {
+    float t_min, t_max;
+    t_min = r.dist_bounds.x;
+    t_max = r.dist_bounds.y;
 
-    return false;
+    for (int a = 0; a < 3; a++) {
+        auto invD = 1.0f / r.dir[a];
+        auto t0 = (min[a] - r.point[a]) * invD;
+        auto t1 = (max[a] - r.point[a]) * invD;
+        if (invD < EPS_F)
+            std::swap(t0, t1);
+        t_min = t0 > t_min ? t0 : t_min;
+        t_max = t1 < t_max ? t1 : t_max;
+        if (t_max < t_min)
+            return false;
+    }
+    return true;
 }
 
 static constexpr float MachineEpsilon =
@@ -23,7 +33,6 @@ static constexpr float gamma2_3 = gamma2(3);
 
 SimpleTrace BBox::hit_simple(const Ray& ray) const {
     SimpleTrace res;
-
     float tMin =  (bounds[  ray.sign[0]].x - ray.point.x) * ray.invdir.x;
     float tMax =  (bounds[1-ray.sign[0]].x - ray.point.x) * ray.invdir.x;
     float tyMin = (bounds[  ray.sign[1]].y - ray.point.y) * ray.invdir.y;
@@ -33,7 +42,6 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
     tyMax *= 1 + 2 * gamma2_3;
 
     if (tMin > tyMax || tyMin > tMax) {
-        if (empty_or_flat()) printf("%f %f %f %f\n", tMin, tyMax, tyMin, tMax);
         return res;
     }
     if (tyMin > tMin) tMin = tyMin;
@@ -47,10 +55,8 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
     if (tzMin > tMin) tMin = tzMin;
     if (tzMax < tMax) tMax = tzMax;
 
-    if (tMin < ray.dist_bounds[1] && tMax > 0) {
+    if (tMin < ray.dist_bounds.y && tMax > ray.dist_bounds.x) {
         res.hit = true;
-        res.tmin = tMin;
-        res.tmax = tMax;
     }
     return res;
 }

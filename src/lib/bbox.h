@@ -157,7 +157,8 @@ struct BBox {
     }
 
     // TODO (PathTracer): see student/bbox.cpp
-    bool hit(const Ray& ray, Vec2& times) const;
+    bool hit(const Ray& r) const;
+
     SimpleTrace hit_simple(const Ray& ray) const;
 
 

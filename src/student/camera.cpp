@@ -12,7 +12,6 @@ Ray Camera::generate_ray(Vec2 screen_coord) const {
     // the camera transform to transform it back into world space.
     float sensor_height=tan(Radians(vert_fov)/2)*focal_dist;
     float sensor_width=sensor_height*aspect_ratio;
-    printf("focal %f ar %f\n", focal_dist, aspect_ratio);
     Vec2 cam_space_coord = screen_coord-0.5;
     Vec3 ray_dir(cam_space_coord.x*sensor_width/0.5, cam_space_coord.y*sensor_height/0.5, -focal_dist);
 

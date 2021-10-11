@@ -149,7 +149,7 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
 
     if (RNG::coin_flip(Fr)) {
         ret.direction = reflect(out_dir);
-        ret.attenuation = reflectance*Fr/fabsf(ret.direction.y); //*Fr/fabsf(out_dir.y);
+        ret.attenuation = reflectance; //*Fr/fabsf(out_dir.y);
     } else {
         bool entering = out_dir.y > EPS_F;
         float etaI = entering ? etaA : etaB;
@@ -162,7 +162,7 @@ Scatter BSDF_Glass::scatter(Vec3 out_dir) const {
         }
         else {
             ret.direction = in_dir;
-            ret.attenuation = transmittance*(1-Fr)/fabsf(ret.direction.y);
+            ret.attenuation = transmittance;
         }
     }
 

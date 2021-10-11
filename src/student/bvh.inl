@@ -251,63 +251,42 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     root_idx = 0;
     BBox root_box = enclose_box(0, primitives.size());
     new_node(root_box, 0, primitives.size(), 0, 0);
+    if (primitives.size() < max_leaf_size) return;
 
-    if (!root_box.empty_or_flat()) {
-        printf("Building BVH with leaf size=%zu\n", max_leaf_size);
-        for (size_t i=0; i<primitives.size(); i++) nodes[root_idx].prims_idx_vec.push_back(i);
-        std::vector<size_t> orderer_primitives;
-        orderer_primitives.reserve(primitives.size());
-        best_bucket_split.bucket_array.reserve(12);
-        Bucket empty_bucket;
-        for (size_t i=0; i<12; i++) best_bucket_split.bucket_array.push_back(empty_bucket);
-        build_helper_sah(max_leaf_size, root_idx, orderer_primitives);
-        reorder(primitives, orderer_primitives);
-        for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
+    printf("Building BVH with leaf size=%zu\n", max_leaf_size);
+    for (size_t i=0; i<primitives.size(); i++) nodes[root_idx].prims_idx_vec.push_back(i);
+    std::vector<size_t> orderer_primitives;
+    orderer_primitives.reserve(primitives.size());
+    best_bucket_split.bucket_array.reserve(12);
+    Bucket empty_bucket;
+    for (size_t i=0; i<12; i++) best_bucket_split.bucket_array.push_back(empty_bucket);
+    build_helper_sah(max_leaf_size, root_idx, orderer_primitives);
+    reorder(primitives, orderer_primitives);
+    for (size_t i=0; i<nodes.size(); i++) node_bbox_enclosing(i);
 
-        // prune bad trees if the bbox of child node is not smaller than that of parent node
-        for (size_t i=0; i<nodes.size(); i++) {
-            size_t pid = nodes[i].parent_id;
-            if (pid < i) {
-                Vec3 diff1 = nodes[i].bbox.min-nodes[pid].bbox.min;
-                Vec3 diff2 = nodes[i].bbox.max-nodes[pid].bbox.max;
-                float diff = diff1.norm()+diff2.norm();
-                if (fabsf(diff) < EPS_F) nodes[i].bad_box = true;
-            }
+    // prune bad trees if the bbox of child node is not smaller than that of parent node
+    for (size_t i=0; i<nodes.size(); i++) {
+        size_t pid = nodes[i].parent_id;
+        if (pid < i) {
+            Vec3 diff1 = nodes[i].bbox.min-nodes[pid].bbox.min;
+            Vec3 diff2 = nodes[i].bbox.max-nodes[pid].bbox.max;
+            float diff = diff1.norm()+diff2.norm();
+            if (fabsf(diff) < EPS_F) nodes[i].bad_box = true;
         }
+    }
 
-        for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu %zu %d %d\n", nodes[i].id, nodes[i].start, nodes[i].size,
-                                                     nodes[i].l, nodes[i].r, nodes[i].parent_id, nodes[i].bbox.empty_or_flat(), nodes[i].bad_box);
-        printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
-    }
-}
+    for (size_t i=0; i<nodes.size(); i++) printf("%zu %zu %zu %zu %zu %zu %d %d\n", nodes[i].id, nodes[i].start, nodes[i].size,
+                                                 nodes[i].l, nodes[i].r, nodes[i].parent_id, nodes[i].bbox.empty_or_flat(), nodes[i].bad_box);
+    printf("Done building BVH with split cost = %f, %zu primitives\n", total_split_cost, primitives.size());
 
-template<typename Primitive>
-void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
-                                const Node& current_node, SimpleTrace& hit_bbox) const {
-    if (!hit_bbox.hit) {
-        return;
-    }
-    if (!nodes[current_node.l].is_leaf() && !nodes[current_node.r].is_leaf()) {
-        SimpleTrace hit_bbox_l = nodes[current_node.l].bbox.hit_simple(ray);
-        SimpleTrace hit_bbox_r = nodes[current_node.r].bbox.hit_simple(ray);
-        if (hit_bbox_l.tmin < hit_bbox_r.tmin && hit_bbox_l.hit && hit_bbox_r.hit) {
-            hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-        } else {
-            hit_helper(ray, closest_hit, nodes[current_node.r], hit_bbox_r);
-            hit_helper(ray, closest_hit, nodes[current_node.l], hit_bbox_l);
-        }
-    } else {
-        hit_helper(ray, closest_hit, nodes[current_node.l]);
-        hit_helper(ray, closest_hit, nodes[current_node.r]);
-    }
 }
 
 template<typename Primitive>
 void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
                                 const Node& current_node) const {
     if (current_node.is_leaf()) {
-
+        SimpleTrace hit_bbox = current_node.bbox.hit_simple(ray);
+        if (!hit_bbox.hit) return;
         size_t start = current_node.start;
         size_t size = current_node.size;
         for (size_t i=start; i<start+size; i++) {
@@ -320,32 +299,24 @@ void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
         }
     } else {
         if (current_node.bad_box) {
-            hit_helper(ray, closest_hit, nodes[current_node.r]);
             hit_helper(ray, closest_hit, nodes[current_node.l]);
+            hit_helper(ray, closest_hit, nodes[current_node.r]);
             return;
         }
         SimpleTrace hit_bbox = current_node.bbox.hit_simple(ray);
-        if (!hit_bbox.hit) {
-            return;
-        }
-        hit_helper(ray, closest_hit, nodes[current_node.r]);
+        if (!hit_bbox.hit) return;
         hit_helper(ray, closest_hit, nodes[current_node.l]);
+        hit_helper(ray, closest_hit, nodes[current_node.r]);
     }
 }
 
 template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
-
-    // TODO (PathTracer): Task 3
-    // Implement ray - BVH intersection test. A ray intersects
-    // with a BVH aggregate if and only if it intersects a primitive in
-    // the BVH that is not an aggregate.
-
-    // The starter code simply iterates through all the primitives.
-    // Again, remember you can use hit() on any Primitive value.
-
     Trace ret;
+    ray.invdir = 1/ray.dir;
+    ray.sign[0] = (ray.invdir.x < 0);
+    ray.sign[1] = (ray.invdir.y < 0);
+    ray.sign[2] = (ray.invdir.z < 0);
     hit_helper(ray, ret, nodes[root_idx]);
-
     return ret;
 }
 
