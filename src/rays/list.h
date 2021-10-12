@@ -32,12 +32,8 @@ public:
     }
 
     Trace hit_normal_only(const Ray& ray) const {
-        Trace ret;
-        for(const auto& p : prims) {
-            Trace test = p.hit_normal_only(ray);
-            return test;
-        }
-        return ret;
+        Trace test = prims[0].hit_normal_only(ray);
+        return test;
     }
 
     bool hitP(const Ray& ray) const {

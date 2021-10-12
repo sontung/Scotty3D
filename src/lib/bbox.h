@@ -15,8 +15,6 @@
 struct SimpleTrace {
     bool hit = false;
     float distance = std::numeric_limits<float>::max();
-    float tmin=-1;
-    float tmax=-1;
 };
 
 struct BBox {
@@ -157,7 +155,7 @@ struct BBox {
     }
 
     // TODO (PathTracer): see student/bbox.cpp
-    bool hit(const Ray& r) const;
+    SimpleTrace hit(const Ray& r) const;
 
     SimpleTrace hit_simple(const Ray& ray) const;
 

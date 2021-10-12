@@ -4,10 +4,11 @@
 #include <iostream>
 
 
-bool BBox::hit(const Ray& r) const {
+SimpleTrace BBox::hit(const Ray& r) const {
     float t_min, t_max;
     t_min = r.dist_bounds.x;
     t_max = r.dist_bounds.y;
+    SimpleTrace ret;
 
     for (int a = 0; a < 3; a++) {
         auto invD = 1.0f / r.dir[a];
@@ -18,9 +19,11 @@ bool BBox::hit(const Ray& r) const {
         t_min = t0 > t_min ? t0 : t_min;
         t_max = t1 < t_max ? t1 : t_max;
         if (t_max < t_min)
-            return false;
+            return ret;
     }
-    return true;
+    ret.hit = true;
+    ret.distance = t_min;
+    return ret;
 }
 
 static constexpr float MachineEpsilon =
@@ -54,10 +57,9 @@ SimpleTrace BBox::hit_simple(const Ray& ray) const {
     if (tMin > tzMax || tzMin > tMax) return res;
     if (tzMin > tMin) tMin = tzMin;
     if (tzMax < tMax) tMax = tzMax;
-
     if (tMin < ray.dist_bounds.y && tMax > ray.dist_bounds.x) {
         res.hit = true;
-        res.distance = tMin;
+        res.distance = tMax;
     }
     return res;
 }

@@ -45,14 +45,13 @@ Trace Sphere::hit(const Ray& ray) const {
     if (t0 > ray.dist_bounds.y || t1 < ray.dist_bounds.x) {
         return ret;
     }
-    ret.skip_able = false;
     float tShapeHit = t0;
     if (tShapeHit < EPS_F) {
         tShapeHit = t1;
         if (tShapeHit > ray.dist_bounds.y)
             return ret;
     }
-    assert(tShapeHit>EPS_F);
+//    assert(tShapeHit>EPS_F);
     ray.dist_bounds.y = tShapeHit;
     ret.distance = tShapeHit;
     ret.position = ray.point+tShapeHit*ray.dir;

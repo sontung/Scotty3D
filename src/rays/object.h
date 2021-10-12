@@ -55,7 +55,7 @@ public:
     Trace hit(Ray ray) const {
         if(has_trans) ray.transform(itrans);
         Trace ret = std::visit([&ray](const auto& o) { return o.hit(ray); }, underlying);
-        if(ret.hit && !ret.special) {
+        if(ret.hit) {
             if(material != -1) ret.material = material;
             if(has_trans) ret.transform(trans, itrans.T());
         }
@@ -63,9 +63,9 @@ public:
     }
 
     void transform_hit_results(Trace &ret) const {
-        if(ret.hit && ret.special) {
+        if(ret.hit) {
             if(material != -1) ret.material = material;
-            if(has_trans) ret.transform(trans, itrans.T());
+            if(has_trans) ret.transform2(itrans.T());
         }
     }
 

@@ -68,6 +68,7 @@ private:
     bool flat_bbox = false;
     mutable bool set_norm_when_flat = false;
     mutable Vec3 norm_when_flat;
+
     std::vector<Tri_Mesh_Vert> verts;
     BVH<Triangle> triangle_bvh;
     List<Triangle> triangle_list;

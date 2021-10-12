@@ -17,7 +17,6 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
 
     // Tip: Samplers::Rect::Uniform
     // Tip: log_ray is useful for debugging
-
     Vec2 xy((float)x, (float)y);
     Vec2 wh((float)out_w, (float)out_h);
 
@@ -30,6 +29,7 @@ Spectrum Pathtracer::trace_pixel(size_t x, size_t y) {
 
     // Pathtracer::trace() returns the incoming light split into emissive and reflected components.
     auto [emissive, reflected] = trace(ray);
+
     return emissive + reflected;
 }
 
@@ -62,7 +62,6 @@ Spectrum Pathtracer::sample_indirect_lighting(const Shading_Info& hit) {
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = hit.depth-1;
-        new_ray.prev_prim_hit = hit.ray.prev_prim_hit;
 
 
         auto res = trace(new_ray);
@@ -92,7 +91,6 @@ Spectrum Pathtracer::sample_direct_lighting(const Shading_Info& hit) {
         Vec3 in_dir_world_space = hit.object_to_world.rotate(in_dir).unit();
         Ray new_ray(hit.pos, in_dir_world_space, Vec2{EPS_F, std::numeric_limits<float>::max()});
         new_ray.depth = 0;
-        new_ray.prev_prim_hit = hit.ray.prev_prim_hit;
 
         auto res = trace(new_ray);
         auto emissive = res.first;
@@ -114,6 +112,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // Trace ray into scene.
 
+
     Trace result = scene.hit(ray);
 
     if(!result.hit) {
@@ -123,7 +122,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
         }
         return {};
     }
-    ray.prev_prim_hit = result.prim_id;
+
 
     // If we're using a two-sided material, treat back-faces the same as front-faces
     const BSDF& bsdf = materials[result.material];
@@ -139,7 +138,7 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(const Ray& ray) {
 
     // TODO (PathTracer): Task 4
     // You will want to change the default normal_colors in debug.h, or delete this early out.
-    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
+//    if(debug_data.normal_colors) return {Spectrum::direction(result.normal), {}};
 
     // If the ray has reached maximum depth, stop tracing
     if(ray.depth == 0) return {};

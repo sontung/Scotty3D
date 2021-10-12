@@ -33,7 +33,9 @@ BBox Triangle::bbox() const {
     return box;
 }
 
-void Triangle::transform_hit_results(Trace &ret) const {return;}
+void Triangle::transform_hit_results(Trace &ret) const {
+    printf("in tri\n");
+    return;}
 
 bool Triangle::hitP(const Ray& ray) const {
 
@@ -66,8 +68,9 @@ Trace Triangle::hit(const Ray& ray) const {
     Vec3 cross_e1_d = cross(e1, ray.dir);
 
     float det = (dot(cross_e1_d, e2));
-    if (det < EPS_F && det > -EPS_F) return ret;
-
+    if (det < EPS_F && det > -EPS_F) {
+        return ret;
+    }
     float f = 1.0/det;
     Vec3 cross_s_e2 = cross(s, e2);
     float dot_s_e2_e1 = dot(cross_s_e2, e1);
@@ -78,10 +81,13 @@ Trace Triangle::hit(const Ray& ray) const {
     }
 
     float u = -f*dot(cross_s_e2, ray.dir);
-    if (u < EPS_F || u > 1.0) return ret;
+    if (u < 0.0f || u > 1.0f) {
+        return ret;
+    }
     float v = f*dot(cross_e1_d, s);
-    if (v < EPS_F || u + v > 1.0) return ret;
-
+    if (v < 0.0f || u + v > 1.0f) {
+        return ret;
+    }
     Tri_Mesh_Vert v_1 = vertex_list[v1];
     Tri_Mesh_Vert v_2 = vertex_list[v2];
     (void)v_1;
@@ -99,14 +105,9 @@ Trace Triangle::hit(const Ray& ray) const {
 
 Trace Triangle::hit_normal_only(const Ray& ray) const {
     Tri_Mesh_Vert v_0 = vertex_list[v0];
-    Tri_Mesh_Vert v_1 = vertex_list[v1];
-    Tri_Mesh_Vert v_2 = vertex_list[v2];
     (void)v_0;
-    (void)v_1;
-    (void)v_2;
     Trace ret;
-    ret.special = true;
-    ret.normal=(v_0.normal+v_1.normal+v_2.normal)/3.0f;
+    ret.normal=v_0.normal;
     return ret;
 }
 
@@ -179,13 +180,13 @@ void Tri_Mesh::build(const GL::Mesh& mesh, bool bvh) {
                     assert(diff.norm()<EPS_F);
                 }
             }
-
-            std::vector<Triangle> tris;
-            for(size_t i = 0; i < idxs.size(); i += 3) {
-                tris.push_back(Triangle(verts.data(), idxs[i], idxs[i + 1], idxs[i + 2]));
-            }
-            triangle_list = List<Triangle>(std::move(tris));
         }
+        flat_bbox = bbox().empty_or_flat();
+        std::vector<Triangle> tris;
+        for(size_t i = 0; i < idxs.size(); i += 3) {
+            tris.push_back(Triangle(verts.data(), idxs[i], idxs[i + 1], idxs[i + 2]));
+        }
+        triangle_list = List<Triangle>(std::move(tris));
     } else {
         triangle_list = List<Triangle>(std::move(tris));
     }
@@ -213,8 +214,9 @@ BBox Tri_Mesh::bbox() const {
 }
 
 Trace Tri_Mesh::hit(const Ray& ray) const {
-    if (bbox().empty_or_flat()) {
-        return triangle_list.hit_normal_only(ray);
+    if (flat_bbox) {
+        Trace ret = triangle_list.hit_normal_only(ray);
+        return ret;
     }
     if(use_bvh) {
         Trace ret = triangle_bvh.hit(ray);

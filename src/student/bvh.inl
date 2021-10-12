@@ -10,6 +10,7 @@ template<typename Primitive>
 void BVH<Primitive>::node_bbox_enclosing(size_t node_idx) {
     size_t start = nodes[node_idx].start;
     size_t size = nodes[node_idx].size;
+    nodes[node_idx].bbox.reset();
     for (size_t i=start; i<start+size; i++) {
         nodes[node_idx].bbox.enclose(primitives[i].bbox());
     }
@@ -285,31 +286,28 @@ template<typename Primitive>
 void BVH<Primitive>::hit_helper(const Ray& ray, Trace& closest_hit,
                                 const Node& current_node) const {
     if (current_node.is_leaf()) {
-        SimpleTrace hit_bbox = current_node.bbox.hit_simple(ray);
-        if (!hit_bbox.hit) return;
         size_t start = current_node.start;
-        size_t size = current_node.size;
         if (current_node.bbox.empty_or_flat()) {
-            Trace ret = primitives[start].hit(ray);
-            ray.dist_bounds.y = hit_bbox.distance;
-            ret.origin = ray.point;
-            ret.distance=hit_bbox.distance;
-            ret.position=ray.point+ret.distance*ray.dir;
-            ret.hit=true;
-            primitives[start].transform_hit_results(ret);
-            closest_hit = Trace::min(closest_hit, ret);
-            return;
-        }
-        for (size_t i=start; i<start+size; i++) {
-            if (i == ray.prev_prim_hit) {
-                continue;
+            SimpleTrace hit_bbox = current_node.bbox.hit_simple(ray);
+            if (hit_bbox.distance < closest_hit.distance && hit_bbox.hit) {
+                Trace ret = primitives[start].hit(ray);
+                ret.origin = ray.point;
+                ret.distance=hit_bbox.distance;
+                ret.position=ray.point+hit_bbox.distance*ray.dir;
+                ret.hit=true;
+                primitives[start].transform_hit_results(ret);
+                ray.dist_bounds.y = hit_bbox.distance;
+                closest_hit = ret;
             }
-            Trace hit = primitives[i].hit(ray);
-            if (hit.hit && hit.skip_able) {
-                hit.prim_id = i;
-            }
-            closest_hit = Trace::min(closest_hit, hit);
         }
+        else {
+            size_t size = current_node.size;
+            for (size_t i=start; i<start+size; i++) {
+                Trace hit = primitives[i].hit(ray);
+                closest_hit = Trace::min(closest_hit, hit);
+            }
+        }
+
     } else {
         if (current_node.bad_box) {
             hit_helper(ray, closest_hit, nodes[current_node.l]);
@@ -330,6 +328,7 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
     ray.sign[1] = (ray.invdir.y < 0);
     ray.sign[2] = (ray.invdir.z < 0);
     hit_helper(ray, ret, nodes[root_idx]);
+
     return ret;
 }
 
